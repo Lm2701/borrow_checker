@@ -1,0 +1,23 @@
+# dune build
+# OCAMLPARAM: unset
+# Shared cache: enabled-except-user-rules
+# Shared cache location: /home/codespace/.cache/dune/db
+# Workspace root: /workspaces/borrow_checker
+# Auto-detected concurrency: 2
+# Dune context:
+#  { name = "default"
+#  ; kind = "default"
+#  ; profile = Dev
+#  ; merlin = true
+#  ; fdo_target_exe = None
+#  ; build_dir = In_build_dir "default"
+#  ; instrument_with = []
+#  }
+$ /workspaces/borrow_checker/_opam/bin/ocamlc.opt -config > /tmp/dune_d24d0a_output
+$ (cd _build/default && /workspaces/borrow_checker/_opam/bin/ocamldep.opt -modules -impl lib/active_borrows.ml) > _build/default/lib/.minirust.objs/minirust__Active_borrows.impl.d
+$ (cd _build/default && /workspaces/borrow_checker/_opam/bin/ocamlopt.opt -w @1..3@5..28@30..39@43@46..47@49..57@61..62-40 -strict-sequence -strict-formats -short-paths -keep-locs -g -I lib/.minirust.objs/byte -I lib/.minirust.objs/native -I /workspaces/borrow_checker/_opam/lib/fix -I /workspaces/borrow_checker/_opam/lib/menhirLib -intf-suffix .ml -no-alias-deps -opaque -open Minirust -o lib/.minirust.objs/native/minirust__Active_borrows.cmx -c -impl lib/active_borrows.ml)
+$ (cd _build/default && /workspaces/borrow_checker/_opam/bin/ocamlc.opt -w @1..3@5..28@30..39@43@46..47@49..57@61..62-40 -strict-sequence -strict-formats -short-paths -keep-locs -g -bin-annot -bin-annot-occurrences -I lib/.minirust.objs/byte -I /workspaces/borrow_checker/_opam/lib/fix -I /workspaces/borrow_checker/_opam/lib/menhirLib -intf-suffix .ml -no-alias-deps -opaque -open Minirust -o lib/.minirust.objs/byte/minirust__Active_borrows.cmo -c -impl lib/active_borrows.ml)
+$ (cd _build/default && /workspaces/borrow_checker/_opam/bin/ocamlc.opt -w @1..3@5..28@30..39@43@46..47@49..57@61..62-40 -strict-sequence -strict-formats -short-paths -keep-locs -g -a -o lib/minirust.cma lib/.minirust.objs/byte/minirust.cmo lib/.minirust.objs/byte/minirust__Ast.cmo lib/.minirust.objs/byte/minirust__Type.cmo lib/.minirust.objs/byte/minirust__Minimir.cmo lib/.minirust.objs/byte/minirust__Uninitialized_places.cmo lib/.minirust.objs/byte/minirust__Error.cmo lib/.minirust.objs/byte/minirust__Typecheck.cmo lib/.minirust.objs/byte/minirust__Print_minimir.cmo lib/.minirust.objs/byte/minirust__Parser.cmo lib/.minirust.objs/byte/minirust__Lexer.cmo lib/.minirust.objs/byte/minirust__Parser_entry.cmo lib/.minirust.objs/byte/minirust__Live_locals.cmo lib/.minirust.objs/byte/minirust__Emit_minimir.cmo lib/.minirust.objs/byte/minirust__Active_borrows.cmo lib/.minirust.objs/byte/minirust__Borrowck.cmo)
+$ (cd _build/default && /workspaces/borrow_checker/_opam/bin/ocamlopt.opt -w @1..3@5..28@30..39@43@46..47@49..57@61..62-40 -strict-sequence -strict-formats -short-paths -keep-locs -g -a -o lib/minirust.cmxa lib/.minirust.objs/native/minirust.cmx lib/.minirust.objs/native/minirust__Ast.cmx lib/.minirust.objs/native/minirust__Type.cmx lib/.minirust.objs/native/minirust__Minimir.cmx lib/.minirust.objs/native/minirust__Uninitialized_places.cmx lib/.minirust.objs/native/minirust__Error.cmx lib/.minirust.objs/native/minirust__Typecheck.cmx lib/.minirust.objs/native/minirust__Print_minimir.cmx lib/.minirust.objs/native/minirust__Parser.cmx lib/.minirust.objs/native/minirust__Lexer.cmx lib/.minirust.objs/native/minirust__Parser_entry.cmx lib/.minirust.objs/native/minirust__Live_locals.cmx lib/.minirust.objs/native/minirust__Emit_minimir.cmx lib/.minirust.objs/native/minirust__Active_borrows.cmx lib/.minirust.objs/native/minirust__Borrowck.cmx)
+$ (cd _build/default && /workspaces/borrow_checker/_opam/bin/ocamlopt.opt -w @1..3@5..28@30..39@43@46..47@49..57@61..62-40 -strict-sequence -strict-formats -short-paths -keep-locs -g -shared -linkall -I lib -o lib/minirust.cmxs lib/minirust.cmxa)
+$ (cd _build/default && /workspaces/borrow_checker/_opam/bin/ocamlopt.opt -w @1..3@5..28@30..39@43@46..47@49..57@61..62-40 -strict-sequence -strict-formats -short-paths -keep-locs -g -o minirust/minirust.exe /workspaces/borrow_checker/_opam/lib/menhirLib/menhirLib.cmxa /workspaces/borrow_checker/_opam/lib/fix/fix.cmxa lib/minirust.cmxa minirust/.minirust.eobjs/native/dune__exe__Minirust.cmx)

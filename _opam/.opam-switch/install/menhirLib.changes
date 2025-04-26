@@ -1,0 +1,18 @@
+opam-version: "2.0"
+added: [
+  "doc/menhirLib" {"D"}
+  "doc/menhirLib/LICENSE" {"F:S45483T1745694264.75"}
+  "lib/menhirLib" {"D"}
+  "lib/menhirLib/META" {"F:S227T1745694264.75"}
+  "lib/menhirLib/dune-package" {"F:S812T1745694264.75"}
+  "lib/menhirLib/menhirLib.a" {"F:S187446T1745694264.75"}
+  "lib/menhirLib/menhirLib.cma" {"F:S267346T1745694264.75"}
+  "lib/menhirLib/menhirLib.cmi" {"F:S56012T1745694264.75"}
+  "lib/menhirLib/menhirLib.cmt" {"F:S844098T1745694264.75"}
+  "lib/menhirLib/menhirLib.cmti" {"F:S293380T1745694264.75"}
+  "lib/menhirLib/menhirLib.cmx" {"F:S15164T1745694264.75"}
+  "lib/menhirLib/menhirLib.cmxa" {"F:S1120T1745694264.75"}
+  "lib/menhirLib/menhirLib.cmxs" {"F:S187128T1745694264.75"}
+  "lib/menhirLib/menhirLib.ml" {"F:S137459T1745694264.75"}
+  "lib/menhirLib/menhirLib.mli" {"F:S72029T1745694264.75"}
+]

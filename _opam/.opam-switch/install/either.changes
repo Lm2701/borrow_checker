@@ -1,0 +1,27 @@
+opam-version: "2.0"
+added: [
+  "doc/either" {"D"}
+  "doc/either/CHANGES.md" {"F:S41T1745694260.9"}
+  "doc/either/LICENSE" {"F:S1075T1745694260.9"}
+  "doc/either/README.md" {"F:S1322T1745694260.9"}
+  "lib/either" {"D"}
+  "lib/either/META" {"F:S168T1745694260.9"}
+  "lib/either/dune-package" {"F:S1168T1745694260.9"}
+  "lib/either/either.a" {"F:S9198T1745694260.9"}
+  "lib/either/either.cma" {"F:S12118T1745694260.9"}
+  "lib/either/either.cmi" {"F:S2641T1745694260.9"}
+  "lib/either/either.cmt" {"F:S13657T1745694260.9"}
+  "lib/either/either.cmx" {"F:S1183T1745694260.9"}
+  "lib/either/either.cmxa" {"F:S590T1745694260.9"}
+  "lib/either/either.cmxs" {"F:S19376T1745694260.9"}
+  "lib/either/either.ml" {"F:S175T1745694260.9"}
+  "lib/either/either__.cmi" {"F:S221T1745694260.9"}
+  "lib/either/either__.cmt" {"F:S2635T1745694260.9"}
+  "lib/either/either__.cmx" {"F:S123T1745694260.9"}
+  "lib/either/either__.ml" {"F:S103T1745694260.9"}
+  "lib/either/either__Either_intf.cmi" {"F:S2770T1745694260.9"}
+  "lib/either/either__Either_intf.cmt" {"F:S15328T1745694260.9"}
+  "lib/either/either__Either_intf.cmx" {"F:S212T1745694260.9"}
+  "lib/either/either_intf.ml" {"F:S1189T1745694260.9"}
+  "lib/either/opam" {"F:S814T1745694260.9"}
+]
