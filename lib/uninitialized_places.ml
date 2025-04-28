@@ -59,11 +59,11 @@ let go prog mir : analysis_results =
 
   (* Effect of using (copying or moving) a place [pl] on the abstract state [state]. *)
   let move_or_copy pl state =
-    (* If the place is not Copy, we deinitialize it. *)
+    (* Si une place contient une valeur non-Copy, on la dé-initialise. *)
     let typ = typ_of_place prog mir pl in
     if not (typ_is_copy prog typ) then deinitialize pl state
     else
-      (* Otherwise, we initialize it. *)
+      (* Sinon, on l'initialise. *)
       initialize pl state
   in
 
