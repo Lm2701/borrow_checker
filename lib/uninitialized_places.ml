@@ -82,7 +82,8 @@ let go prog mir : analysis_results =
       similar data flow analysis. *)
 
     let foreach_root go =
-      () (* TODO *)
+      (*Comme pour active_borrows.ml, le seul point d'entrée est [mir.mentry], avec pour état initial [PlaceSet.empty]*)
+      go mir.mentry PlaceSet.empty
 
     let foreach_successor lbl state go =
         () (* TODO *)
