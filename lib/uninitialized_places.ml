@@ -85,16 +85,21 @@ let go prog mir : analysis_results =
       go mir.mentry PlaceSet.empty
 
     let foreach_successor lbl state go =
-      let go next state =
-        go next
-          (PlaceSet.filter
-             (fun pl -> PpSet.mem (PpLocal next) )
-             state)
+      let relevant_places_at prog mir lbl =
+        LiveLocals.get mir lbl
+        |> LocalSet.elements
+        |> List.map (fun v -> PlLocal v)
+        |> PlaceSet.of_list
       in
-
+      
+      let go next state =
+        (* Ne propager que les places non initialisées encore pertinentes à [next]. *)
+        let relevant = relevant_places_at prog mir next in
+        go next (PlaceSet.filter (fun pl -> PlaceSet.mem pl relevant) state)
+      in   
       let assign pl state =
         (* When writing to a place, we de-activate any borrows of any of its sub-place. *)
-        PlaceSet.filter (fun bor -> not (is_subplace (get_bor_info prog mir bor).bplace pl)) state
+        PlaceSet.filter (fun p -> not (is_subplace p pl)) state
       in
 
       match fst mir.minstrs.(lbl) with
