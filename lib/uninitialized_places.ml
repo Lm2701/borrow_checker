@@ -103,17 +103,37 @@ let go prog mir : analysis_results =
       in
 
       match fst mir.minstrs.(lbl) with
-      | Iassign (pl, RVborrow (_, _), next) ->
-          let state = PlaceSet.add lbl state in
-          go next (assign pl state)
-      | Iassign (pl, _, next) -> go next (assign pl state)
-      | Ideinit (l, next) -> go next (assign (PlLocal l) state)
-      | Igoto next -> go next state
+      | Iassign (pl, RVborrow _, next) ->
+          (* Un emprunt ne consomme pas la source *)
+          let state = assign pl state in
+          go next state
+
+      | Iassign (pl, rv, next) ->
+          let state =
+            match rv with
+            | RVplace pl_src -> move_or_copy pl_src state
+            | _ -> state
+          in
+          let state = assign pl state in
+          go next state
+
+      | Ideinit (l, next) ->
+          let state = deinitialize (PlLocal l) state in
+          go next state
+
+      | Igoto next ->
+          go next state
+
       | Iif (_, next1, next2) ->
           go next1 state;
           go next2 state
+
+      | Icall (_, _, pl, next) ->
+          let state = assign pl state in
+          go next state
+
       | Ireturn -> ()
-      | Icall (_, _, pl, next) -> go next (assign pl state)
+
   end in
   let module Fix = Fix.DataFlow.ForIntSegment (Instrs) (Prop) (Graph) in
   fun i -> Option.value (Fix.solution i) ~default:PlaceSet.empty
