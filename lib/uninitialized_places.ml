@@ -63,8 +63,7 @@ let go prog mir : analysis_results =
     let typ = typ_of_place prog mir pl in
     if not (typ_is_copy prog typ) then deinitialize pl state
     else
-      (* Sinon, on l'initialise. *)
-      initialize pl state
+      state
   in
 
   (* These modules are parameters of the [Fix.DataFlow.ForIntSegment] functor below. *)
@@ -86,7 +85,30 @@ let go prog mir : analysis_results =
       go mir.mentry PlaceSet.empty
 
     let foreach_successor lbl state go =
-        () (* TODO *)
+      let go next state =
+        go next
+          (PlaceSet.filter
+             (fun pl -> PpSet.mem (PpLocal next) )
+             state)
+      in
+
+      let assign pl state =
+        (* When writing to a place, we de-activate any borrows of any of its sub-place. *)
+        PlaceSet.filter (fun bor -> not (is_subplace (get_bor_info prog mir bor).bplace pl)) state
+      in
+
+      match fst mir.minstrs.(lbl) with
+      | Iassign (pl, RVborrow (_, _), next) ->
+          let state = PlaceSet.add lbl state in
+          go next (assign pl state)
+      | Iassign (pl, _, next) -> go next (assign pl state)
+      | Ideinit (l, next) -> go next (assign (PlLocal l) state)
+      | Igoto next -> go next state
+      | Iif (_, next1, next2) ->
+          go next1 state;
+          go next2 state
+      | Ireturn -> ()
+      | Icall (_, _, pl, next) -> go next (assign pl state)
   end in
   let module Fix = Fix.DataFlow.ForIntSegment (Instrs) (Prop) (Graph) in
   fun i -> Option.value (Fix.solution i) ~default:PlaceSet.empty
