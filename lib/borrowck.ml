@@ -40,6 +40,12 @@ let compute_lft_sets prog mir : lifetime -> PpSet.t =
 
     SUGGESTION: use functions [typ_of_place], [fields_types_fresh] and [fn_prototype_fresh].
   *)
+  let unify_typs pl1 pl2 =
+    let typ1 = typ_of_place prog mir pl1 in
+    let typ2 = typ_of_place prog mir pl2 in
+    unify_lft (typ1, typ2)
+  in
+
 
   (* The [living] variable contains constraints of the form "lifetime 'a should be
     alive at program point p". *)
