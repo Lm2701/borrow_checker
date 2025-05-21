@@ -379,7 +379,7 @@ let borrowck prog mir =
             (bi.bmut = Mut || write)
             && (is_subplace pl bi.bplace || is_subplace bi.bplace pl))
           active_borrows_info
-      in
+      in      
 
       (* Check a "use" (copy or move) of place [pl]. *)
       let check_use pl =
@@ -398,7 +398,22 @@ let borrowck prog mir =
       | Iassign (_, RVmake (_, pls), _) ->
         List.iter check_use pls
       | Iassign (_, RVplace pl, _) ->
-        check_use pl
+        check_use pl;
+        (*(match pl with
+          | PlLocal l ->
+              (* Pour chaque struct vivante, vérifie ses champs *)
+              Hashtbl.iter (fun l' typ' ->
+                match typ' with
+                | Tstruct (sid, _) ->
+                    let fields, _ = fields_types_fresh prog sid in
+                    List.iter (fun (field_name, _) ->
+                      let field_place = PlField (PlLocal l', field_name) in
+                      if is_subplace field_place pl && field_place <> pl then
+                        check_use field_place
+                    ) fields
+                | _ -> ()
+              ) mir.mlocals
+          | _ -> ())*)
       | Iassign (_, RVbinop (_, pl1, pl2), _) ->
         check_use pl1;
         check_use pl2
