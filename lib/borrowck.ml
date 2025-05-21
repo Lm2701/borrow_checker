@@ -123,6 +123,30 @@ let compute_lft_sets prog mir : lifetime -> PpSet.t =
        function.
   *)
 
+  Array.iteri
+    (fun lbl _instr ->
+      let ppoint = PpInFn lbl in
+      let locals = live_locals lbl in
+      PlaceSet.iter
+        (function
+          | PlLocal l ->
+              (match Hashtbl.find_opt mir.mlocals l with
+              | Some typ ->
+                  LSet.iter (fun lft -> add_living ppoint lft) (free_lfts typ)
+              | None -> ())
+          | _ -> ())
+        locals
+    )
+    mir.minstrs;
+  
+  Array.iteri
+    (fun lbl _instr ->
+      let ppoint = PpInFn lbl in
+      List.iter (fun lft -> add_living ppoint lft) mir.mgeneric_lfts
+    )
+    mir.minstrs;
+  
+
   (* If [lft] is a generic lifetime, [lft] is always alive at [PpInCaller lft]. *)
   List.iter (fun lft -> add_living (PpInCaller lft) lft) mir.mgeneric_lfts;
 
@@ -176,9 +200,20 @@ let borrowck prog mir =
   (* We check the code honors the non-mutability of shared borrows. *)
   Array.iteri
     (fun _ (instr, loc) ->
-      (* TODO: check that we never write to shared borrows, and that we never create mutable borrows
-        below shared borrows. Function [place_mut] can be used to determine if a place is mutable, i.e., if it
-        does not dereference a shared borrow. *)
+      let check_write pl =
+        if not (place_mut prog mir pl) then
+          Error.error loc "Cannot write to a place behind a shared borrow."
+      in
+      let check_mut_borrow pl =
+        if not (place_mut prog mir pl) then
+          Error.error loc "Cannot create a mutable borrow below a shared borrow."
+      in
+      match instr with
+      | Iassign (pl, _, _) | Icall (_, _, pl, _) ->
+          check_write pl
+      | Iassign (_, RVborrow (Mut, pl), _) ->
+          check_mut_borrow pl
+      | _ -> ()
       ()
     )
     mir.minstrs;
@@ -189,6 +224,26 @@ let borrowck prog mir =
     enough to ensure safety. I.e., if [lft_sets lft] contains program point [PpInCaller lft'], this
     means that we need that [lft] be alive when [lft'] dies, i.e., [lft'] outlives [lft]. This relation
     has to be declared in [mir.outlives_graph]. *)
+  
+  LMap.iter
+    (fun lft ppset ->
+      PpSet.iter
+        (function
+          | PpInCaller lft' ->
+              let declared =
+                match LMap.find_opt lft' mir.outlives_graph with
+                | Some s -> LSet.mem lft s
+                | None -> false
+              in
+              if not declared then
+                Error.error
+                  (Location.none)
+                  (Printf.sprintf
+                    "Missing outlives constraint in function prototype: '%s : '%s"
+                    (string_of_lft lft') (string_of_lft lft))
+          | _ -> ())
+        ppset)
+    (fun lft -> lft_sets lft)
 
   (* We check that we never perform any operation which would conflict with an existing
     borrows. *)
