@@ -59,7 +59,11 @@ let go prog mir : analysis_results =
 
   (* Effect of using (copying or moving) a place [pl] on the abstract state [state]. *)
   let move_or_copy pl state =
-    state (* TODO : This code is incorrect. Replace with correct code. *)
+    (* Si une place contient une valeur non-Copy, on la dé-initialise. *)
+    let typ = typ_of_place prog mir pl in
+    if not (typ_is_copy prog typ) then deinitialize pl state
+    else
+      state
   in
 
   (* These modules are parameters of the [Fix.DataFlow.ForIntSegment] functor below. *)
@@ -77,10 +81,59 @@ let go prog mir : analysis_results =
       similar data flow analysis. *)
 
     let foreach_root go =
-      () (* TODO *)
+      (*Comme pour active_borrows.ml, le seul point d'entrée est [mir.mentry], avec pour état initial [PlaceSet.empty]*)
+      go mir.mentry PlaceSet.empty
 
     let foreach_successor lbl state go =
-        () (* TODO *)
+      let relevant_places_at prog mir lbl =
+        Live_locals.go mir lbl
+        |> LocSet.elements
+        |> List.map (fun v -> PlLocal v)
+        |> PlaceSet.of_list
+      in
+      
+      let go next state =
+        (* Ne propager que les places non initialisées encore pertinentes à [next]. *)
+        let relevant = relevant_places_at prog mir next in
+        go next (PlaceSet.filter (fun pl -> PlaceSet.mem pl relevant) state)
+      in   
+      let assign pl state =
+        (* When writing to a place, we de-activate any borrows of any of its sub-place. *)
+        PlaceSet.filter (fun p -> not (is_subplace p pl)) state
+      in
+
+      match fst mir.minstrs.(lbl) with
+      | Iassign (pl, RVborrow _, next) ->
+          (* Un emprunt ne consomme pas la source *)
+          let state = assign pl state in
+          go next state
+
+      | Iassign (pl, rv, next) ->
+          let state =
+            match rv with
+            | RVplace pl_src -> move_or_copy pl_src state
+            | _ -> state
+          in
+          let state = assign pl state in
+          go next state
+
+      | Ideinit (l, next) ->
+          let state = deinitialize (PlLocal l) state in
+          go next state
+
+      | Igoto next ->
+          go next state
+
+      | Iif (_, next1, next2) ->
+          go next1 state;
+          go next2 state
+
+      | Icall (_, _, pl, next) ->
+          let state = assign pl state in
+          go next state
+
+      | Ireturn -> ()
+
   end in
   let module Fix = Fix.DataFlow.ForIntSegment (Instrs) (Prop) (Graph) in
   fun i -> Option.value (Fix.solution i) ~default:PlaceSet.empty

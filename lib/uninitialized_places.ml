@@ -86,8 +86,8 @@ let go prog mir : analysis_results =
 
     let foreach_successor lbl state go =
       let relevant_places_at prog mir lbl =
-        LiveLocals.get mir lbl
-        |> LocalSet.elements
+        Live_locals.go mir lbl
+        |> LocSet.elements
         |> List.map (fun v -> PlLocal v)
         |> PlaceSet.of_list
       in
