@@ -368,6 +368,7 @@ let borrowck prog mir =
             mir.mlocals
       | _ -> ());
 
+
       (* Variant of [conflicting_borrow_no_deref]: does there exist a borrow of a place pl',
         which is active at program point [lbl], such that a *read* to [pl] conflicts with this
         borrow? In addition, if parameter [write] is true, we consider an operation which is
