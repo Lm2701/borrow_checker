@@ -333,12 +333,25 @@ let borrowck prog mir =
         which is active at program point [lbl], such that a *read* to [pl] conflicts with this
         borrow? In addition, if parameter [write] is true, we consider an operation which is
         both a read and a write. *)
+      let rec place_targets prog mir pl =
+        match typ_of_place prog mir pl with
+        | Tborrow (_, _, _) -> (
+            match pl with
+            | PlDeref p -> place_targets prog mir p
+            | _ -> [pl]
+          )
+        | _ -> [pl]
+      in
       let conflicting_borrow write pl =
         List.exists
           (fun bi ->
             (bi.bmut = Mut || write)
-            && (is_subplace pl bi.bplace || is_subplace bi.bplace pl))
-          active_borrows_info
+            && (is_subplace pl bi.bplace || is_subplace bi.bplace pl
+            ||
+            (* Test : la cible du borrow est pl ou un sous-place de pl *)
+            List.exists (fun target -> is_subplace pl target || is_subplace target pl)
+              (place_targets prog mir bi.bplace)))
+              active_borrows_info
       in
 
       (* Check a "use" (copy or move) of place [pl]. *)

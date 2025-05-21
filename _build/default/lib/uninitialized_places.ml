@@ -82,15 +82,29 @@ let go prog mir : analysis_results =
       similar data flow analysis. *)
 
     let foreach_root go =
-      (*Comme pour active_borrows.ml, le seul point d'entrée est [mir.mentry], avec pour état initial [PlaceSet.empty]*)
-      go mir.mentry PlaceSet.empty
-
+        let args =
+          Hashtbl.fold (fun l _ acc -> match l with Lparam _ -> PlLocal l :: acc | _ -> acc) mir.mlocals []
+        in
+        let ret =
+          Hashtbl.fold (fun l _ acc -> match l with Lret -> PlLocal l :: acc | _ -> acc) mir.mlocals []
+        in
+        let to_remove =
+          List.fold_left
+            (fun acc pl -> PlaceSet.union acc (Hashtbl.find subplaces pl))
+            PlaceSet.empty (args @ ret)
+        in
+        let initial = PlaceSet.diff all_places to_remove in
+        go mir.mentry initial
     let foreach_successor lbl state go =
       let relevant_places_at prog mir lbl =
-        Live_locals.go mir lbl
-        |> LocSet.elements
-        |> List.map (fun v -> PlLocal v)
-        |> PlaceSet.of_list
+        let locals = Live_locals.go mir lbl |> LocSet.elements in
+        let places = List.map (fun v -> PlLocal v) locals in
+        let rec add_parents acc pl =
+          match pl with
+          | PlField (parent, _) | PlDeref parent -> add_parents (PlaceSet.add parent acc) parent
+          | _ -> acc
+        in
+        List.fold_left add_parents (PlaceSet.of_list places) places
       in
       
       let go next state =
@@ -98,10 +112,8 @@ let go prog mir : analysis_results =
         let relevant = relevant_places_at prog mir next in
         go next (PlaceSet.filter (fun pl -> PlaceSet.mem pl relevant) state)
       in   
-      let assign pl state =
-        (* When writing to a place, we de-activate any borrows of any of its sub-place. *)
-        PlaceSet.filter (fun p -> not (is_subplace p pl)) state
-      in
+      let assign pl state = initialize pl state 
+      in 
 
       match fst mir.minstrs.(lbl) with
       | Iassign (pl, RVborrow _, next) ->
