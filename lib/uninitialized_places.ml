@@ -97,28 +97,15 @@ let go prog mir : analysis_results =
         go mir.mentry initial
 
     let foreach_successor lbl state go =
-      let relevant_places_at prog mir lbl =
-        let locals = Live_locals.go mir lbl |> LocSet.elements in
-        let places = List.map (fun v -> PlLocal v) locals in
-        let rec add_parents acc pl =
-          match pl with
-          | PlField (parent, _) | PlDeref parent -> add_parents (PlaceSet.add parent acc) parent
-          | _ -> acc
-        in
-        List.fold_left add_parents (PlaceSet.of_list places) places
-      in
       
       let go next state =
-        (* Ne propager que les places non initialisées encore pertinentes à [next]. *)
-        let relevant = relevant_places_at prog mir next in
-        go next (PlaceSet.filter (fun pl -> PlaceSet.mem pl relevant) state)
+        go next state
       in   
       let assign pl state = initialize pl state 
       in 
 
       match fst mir.minstrs.(lbl) with
       | Iassign (pl, RVborrow _, next) ->
-          (* Un emprunt ne consomme pas la source *)
           let state = assign pl state in
           go next state
       | Iassign (pl, RVmake (_, pls), next) ->
