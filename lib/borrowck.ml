@@ -46,6 +46,42 @@ let compute_lft_sets prog mir : lifetime -> PpSet.t =
     unify_lft (typ1, typ2)
   in
 
+  (* Génération des contraintes *)
+  Array.iter
+    (fun (instr, _loc) ->
+      match instr with
+      | Iassign (pl, rv, _) -> (
+          (* Unification des types du côté droit et gauche *)
+          (match rv with
+          | RVplace pl2 -> unify_typs pl pl2
+          | RVbinop (_, pl1, pl2) ->
+              unify_typs pl pl1;
+              unify_typs pl pl2
+          | RVunop (_, pl1) -> unify_typs pl pl1
+          | RVmake (_, pls) -> List.iter (fun pl2 -> unify_typs pl pl2) pls
+          | RVborrow (_, pl2) ->
+              (* Reborrow: le lifetime du borrow doit être plus court que le lifetime du borrow du déréférencement *)
+              let typ = typ_of_place prog mir pl2 in
+              let rec collect_lifetimes t acc =
+                match t with
+                | Tref (lft, t', _) -> collect_lifetimes t' (lft :: acc)
+                | _ -> acc
+              in
+              let lfts = collect_lifetimes typ [] in
+              let typ_l = typ_of_place prog mir pl in
+              (match typ_l with
+              | Tref (lft_new, _, _) ->
+                  List.iter (fun lft_old -> add_outlives (lft_old, lft_new)) lfts
+              | _ -> ())
+          | _ -> ())
+        )
+      | Icall (_fn, args, retpl, _) ->
+          (* Contraintes d'appel de fonction *)
+          List.iter (fun argpl -> unify_typs retpl argpl) args
+      | _ -> ()
+    )
+    mir.minstrs;
+
 
   (* The [living] variable contains constraints of the form "lifetime 'a should be
     alive at program point p". *)
