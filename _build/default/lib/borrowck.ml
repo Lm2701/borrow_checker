@@ -235,16 +235,17 @@ let borrowck prog mir =
       LMap.empty
       mir.mgeneric_lfts
   in
+  let outlives_transitive lft' lft =
+    match LMap.find_opt lft' mir.moutlives_graph with
+    | Some s -> LSet.mem lft s
+    | None -> false
+  in
   LMap.iter
     (fun lft ppset ->
       PpSet.iter
         (function
           | PpInCaller lft' ->
-              let declared =
-                match LMap.find_opt lft' mir.moutlives_graph with
-                | Some s -> LSet.mem lft s
-                | None -> false
-              in
+              let declared = outlives_transitive lft lft' in
               if not declared then
                 Error.error
                   dummy_loc

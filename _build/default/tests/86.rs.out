@@ -1,0 +1,2 @@
+File "86.rs", line 6, characters 14-18:
+Cannot write to a place behind a shared borrow.
