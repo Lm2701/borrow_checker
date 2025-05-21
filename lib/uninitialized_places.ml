@@ -108,7 +108,14 @@ let go prog mir : analysis_results =
           (* Un emprunt ne consomme pas la source *)
           let state = assign pl state in
           go next state
-
+      | Iassign (pl, RVmake (_, pls), next) ->
+          let state =
+            List.fold_left
+              (fun st arg -> move_or_copy arg st)
+              state pls
+          in
+          let state = assign pl state in
+          go next state
       | Iassign (pl, rv, next) ->
           let state =
             match rv with

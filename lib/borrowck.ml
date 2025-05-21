@@ -43,9 +43,9 @@ let compute_lft_sets prog mir : lifetime -> PpSet.t =
     SUGGESTION: use functions [typ_of_place], [fields_types_fresh] and [fn_prototype_fresh].
   *)
   let unify_typs typ1 typ2 =
-    let lfts1 = LSet.elements (free_lfts typ1) in
-    let lfts2 = LSet.elements (free_lfts typ2) in
-    List.iter2 unify_lft lfts1 lfts2
+  let lfts1 = LSet.elements (free_lfts typ1) in
+  let lfts2 = LSet.elements (free_lfts typ2) in
+  List.iter2 unify_lft lfts1 lfts2
   in
   let unify_typs_places pl1 pl2 =
     let typ1 = typ_of_place prog mir pl1 in
@@ -101,6 +101,14 @@ let compute_lft_sets prog mir : lifetime -> PpSet.t =
           let ret_typ_actual = typ_of_place prog mir retpl in
           unify_typs ret_typ ret_typ_actual;
           List.iter add_outlives outlives_list
+      | Ireturn ->
+        (match Hashtbl.find_opt mir.mlocals Lret with
+          | Some typ_ret ->
+              let typ_val = typ_of_place prog mir (PlLocal Lret) in
+              (match typ_ret with
+                | Tunit -> ()
+                | _ -> unify_typs typ_ret typ_val)
+          | None -> ())
       | _ -> ()
     )
     mir.minstrs;
@@ -196,9 +204,24 @@ let borrowck prog mir =
           check_initialized pl1;
           check_initialized pl2
       | Iassign (_, RVunop (_, pl), _) | Iif (pl, _, _) -> check_initialized pl
-      | Iassign (_, RVmake (_, pls), _) | Icall (_, pls, _, _) ->
-          List.iter check_initialized pls
-      | Ireturn -> check_initialized (PlLocal Lret)
+      | Iassign (_, RVmake (_, pls), _) ->
+        let state = ref uninit in
+        List.iter (fun pl ->
+          if PlaceSet.exists (fun pluninit -> is_subplace pluninit pl) !state then
+            Error.error loc "Use of a place which is not fully initialized at this point.";
+          let typ = typ_of_place prog mir pl in
+          if not (typ_is_copy prog typ) then
+            state := PlaceSet.union !state (PlaceSet.singleton pl)
+        ) pls
+      | Icall (_, pls, _, _) ->
+        List.iter check_initialized pls
+      | Ireturn -> 
+        (match Hashtbl.find_opt mir.mlocals Lret with
+          | Some typ_ret ->
+              (match typ_ret with
+              | Tunit -> ()
+              | _ -> check_initialized (PlLocal Lret))
+          | None -> ())
       | Iassign (_, (RVunit | RVconst _), _) | Ideinit _ | Igoto _ -> ())
     mir.minstrs;
 
@@ -332,6 +355,22 @@ let borrowck prog mir =
       | Iassign (_, RVborrow (mut, pl), _) ->
           if conflicting_borrow (mut = Mut) pl then
             Error.error loc "There is a borrow conflicting this borrow."
-      | _ -> () (* TODO: complete the other cases*)
+      | Iassign (_, RVmake (_, pls), _) ->
+        List.iter check_use pls
+      | Iassign (_, RVplace pl, _) ->
+        check_use pl
+      | Iassign (_, RVbinop (_, pl1, pl2), _) ->
+        check_use pl1;
+        check_use pl2
+      | Icall (_, pls, _, _) ->
+        List.iter check_use pls
+      | Ireturn ->
+        (match Hashtbl.find_opt mir.mlocals Lret with
+          | Some typ_ret ->
+              (match typ_ret with
+              | Tunit -> ()
+              | _ -> check_use (PlLocal Lret))
+          | None -> ())
+      | _ -> () 
     )
     mir.minstrs
