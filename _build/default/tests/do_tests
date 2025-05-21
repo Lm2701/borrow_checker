@@ -39,5 +39,5 @@ do
         then
           echo Test $f: should not return an error, but *rustc* returned code $retrust.
         fi
-    fi
+    fi   
 done

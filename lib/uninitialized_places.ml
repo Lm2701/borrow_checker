@@ -61,7 +61,8 @@ let go prog mir : analysis_results =
   let move_or_copy pl state =
     (* Si une place contient une valeur non-Copy, on la dé-initialise. *)
     let typ = typ_of_place prog mir pl in
-    if not (typ_is_copy prog typ) then deinitialize pl state
+    if not (typ_is_copy prog typ) then 
+      deinitialize pl state
     else
       state
   in
@@ -128,7 +129,12 @@ let go prog mir : analysis_results =
           go next1 state;
           go next2 state
 
-      | Icall (_, _, pl, next) ->
+      | Icall (_, args, pl, next) ->
+          let state =
+            List.fold_left
+              (fun st arg -> move_or_copy arg st)
+              state args
+          in
           let state = assign pl state in
           go next state
 
