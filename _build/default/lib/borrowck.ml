@@ -214,10 +214,10 @@ let borrowck prog mir =
           Error.error loc "Cannot create a mutable borrow below a shared borrow."
       in
       match instr with
-      | Iassign (pl, _, _) | Icall (_, _, pl, _) ->
-          check_write pl
       | Iassign (_, RVborrow (Mut, pl), _) ->
           check_mut_borrow pl
+      | Iassign (pl, _, _) | Icall (_, _, pl, _) ->
+          check_write pl
       | _ -> ()
     )
     mir.minstrs;
@@ -228,7 +228,13 @@ let borrowck prog mir =
     enough to ensure safety. I.e., if [lft_sets lft] contains program point [PpInCaller lft'], this
     means that we need that [lft] be alive when [lft'] dies, i.e., [lft'] outlives [lft]. This relation
     has to be declared in [mir.outlives_graph]. *)
-  
+
+  let lft_sets_map =
+    List.fold_left
+      (fun acc lft -> LMap.add lft (lft_sets lft) acc)
+      LMap.empty
+      mir.mgeneric_lfts
+  in
   LMap.iter
     (fun lft ppset ->
       PpSet.iter
@@ -242,12 +248,11 @@ let borrowck prog mir =
               if not declared then
                 Error.error
                   dummy_loc
-                  (Printf.sprintf
-                    "Missing outlives constraint in function prototype: '%s : '%s"
-                    (string_of_lft lft') (string_of_lft lft))
+                  "Missing outlives constraint in function prototype: '%s : '%s"
+                  (string_of_lft lft') (string_of_lft lft)
           | _ -> ())
         ppset)
-    lft_sets;
+    lft_sets_map;
 
   (* We check that we never perform any operation which would conflict with an existing
     borrows. *)
