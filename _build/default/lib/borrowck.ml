@@ -47,21 +47,6 @@ let compute_lft_sets prog mir : lifetime -> PpSet.t =
   let lfts2 = LSet.elements (free_lfts typ2) in
   List.iter2 unify_lft lfts1 lfts2
   in
-  (*let rec unify_typs typ1 typ2 =
-    match typ1, typ2 with
-      | Tbool, Tbool | Ti32, Ti32 | Tunit, Tunit -> ()
-      | Tborrow (lft1, mut1, t1), Tborrow (lft2, mut2, t2) ->
-          unify_lft lft1 lft2;
-          if mut1 <> mut2 then
-            Error.error dummy_loc "Mismatched mutability in borrow types";
-          unify_typs t1 t2
-      | Tstruct (id1, lfts1), Tstruct (id2, lfts2) when id1 = id2 ->
-        List.iter2 unify_lft lfts1 lfts2;
-        let fields1, _ = fields_types_fresh prog id1 in
-        let fields2, _ = fields_types_fresh prog id2 in
-        List.iter2 unify_typs fields1 fields2
-      | _ -> Error.error dummy_loc "Type mismatch in unify_typs"
-  in*)
   let unify_typs_places pl1 pl2 =
     let typ1 = typ_of_place prog mir pl1 in
     let typ2 = typ_of_place prog mir pl2 in
