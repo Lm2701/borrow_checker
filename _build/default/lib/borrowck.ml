@@ -53,6 +53,20 @@ let compute_lft_sets prog mir : lifetime -> PpSet.t =
     unify_typs typ1 typ2
   in
 
+  let subst_lft subst lft =
+    match List.assoc_opt lft subst with
+    | Some lft' -> lft'
+    | None -> lft
+  in
+  let rec build_lft_subst param_typ arg_typ subst =
+    match param_typ, arg_typ with
+    | Tborrow (lft1, mut1, t1), Tborrow (lft2, mut2, t2) ->
+      let subst = (lft1, lft2) :: subst in
+      build_lft_subst t1 t2 subst
+    | Tstruct (_, lfts1), Tstruct (_, lfts2) ->
+      List.fold_left2 (fun s l1 l2 -> (l1, l2) :: s) subst lfts1 lfts2
+    | _ -> subst
+  in
   (* Génération des contraintes *)
   Array.iter
     (fun (instr, _loc) ->
@@ -91,16 +105,35 @@ let compute_lft_sets prog mir : lifetime -> PpSet.t =
           | _ -> ())
         )
       | Icall (fn, args, retpl, _) ->
-          (* Contraintes d'appel de fonction *)
-          let param_typs, ret_typ, outlives_list = fn_prototype_fresh prog fn in
-          List.iter2
-            (fun argpl param_typ ->
+        let param_typs, ret_typ, outlives_list = fn_prototype_fresh prog fn in
+        (* Construction de la substitution *)
+        let subst =
+          List.fold_left2
+            (fun s param_typ argpl ->
               let arg_typ = typ_of_place prog mir argpl in
-              unify_typs param_typ arg_typ)
-            args param_typs;
-          let ret_typ_actual = typ_of_place prog mir retpl in
-          unify_typs ret_typ ret_typ_actual;
-          List.iter add_outlives outlives_list
+              build_lft_subst param_typ arg_typ s)
+            [] param_typs args
+        in
+        List.iter2
+          (fun argpl param_typ ->
+            let arg_typ = typ_of_place prog mir argpl in
+            unify_typs param_typ arg_typ)
+          args param_typs;
+        let ret_typ_actual = typ_of_place prog mir retpl in
+        unify_typs ret_typ ret_typ_actual;
+        (* Ajout des contraintes outlives avec substitution *)
+        (* DEBUG: Affichage de la substitution et des contraintes outlives *)
+        (*Printf.printf "Substitution lifetimes:@.";
+        List.iter (fun (l1, l2) ->
+          Printf.printf "  %s -> %s@." (string_of_lft l1) (string_of_lft l2)
+        ) subst;
+        Printf.printf "Contraintes outlives (après substitution):@.";
+        List.iter (fun (l1, l2) ->
+          let l1' = subst_lft subst l1 in
+          let l2' = subst_lft subst l2 in
+          Printf.printf "  %s : %s@. \n" (string_of_lft l1') (string_of_lft l2')
+        ) outlives_list;*)
+        List.iter (fun (l1, l2) -> add_outlives (subst_lft subst l1, subst_lft subst l2)) outlives_list
       | Ireturn ->
         (match Hashtbl.find_opt mir.mlocals Lret with
           | Some typ_ret ->
@@ -258,11 +291,17 @@ let borrowck prog mir =
       LMap.empty
       mir.mgeneric_lfts
   in
-  let outlives_transitive lft' lft =
-    match LMap.find_opt lft' mir.moutlives_graph with
-    | Some s -> LSet.mem lft s
-    | None -> false
+  let rec outlives_transitive ?(visited=LSet.empty) lft' lft =
+    if lft' = lft then true
+    else if LSet.mem lft' visited then false
+    else
+      match LMap.find_opt lft' mir.moutlives_graph with
+      | Some s when LSet.mem lft s -> true
+      | Some s ->
+          LSet.exists (fun lft'' -> outlives_transitive ~visited:(LSet.add lft' visited) lft'' lft) s
+      | None -> false
   in
+  
   LMap.iter
     (fun lft ppset ->
       PpSet.iter

@@ -13,7 +13,7 @@
 #  ; build_dir = In_build_dir "default"
 #  ; instrument_with = []
 #  }
-$ /workspaces/borrow_checker/_opam/bin/ocamlc.opt -config > /tmp/dune_6fd652_output
+$ /workspaces/borrow_checker/_opam/bin/ocamlc.opt -config > /tmp/dune_300123_output
 $ (cd _build/default/minirust && ../tests/do_tests)
 > Running test 01.rs...
 > Running test 02.rs...
