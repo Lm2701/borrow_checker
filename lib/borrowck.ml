@@ -58,7 +58,15 @@ let compute_lft_sets prog mir : lifetime -> PpSet.t =
               unify_typs pl pl1;
               unify_typs pl pl2
           | RVunop (_, pl1) -> unify_typs pl pl1
-          | RVmake (_, pls) -> List.iter (fun pl2 -> unify_typs pl pl2) pls
+          | RVmake (_, pls) -> 
+            let field_typs, _ = fields_types_fresh prog s in
+              List.iter2
+                (fun pl2 field_typ ->
+                  let typ2 = typ_of_place prog mir pl2 in
+                  unify_lft (field_typ, typ2))
+                pls field_typs;
+            let typ = typ_of_place prog mir pl in
+            unify_lft (typ, (snd (fields_types_fresh prog s)))
           | RVborrow (_, pl2) ->
               (* Reborrow: le lifetime du borrow doit être plus court que le lifetime du borrow du déréférencement *)
               let typ = typ_of_place prog mir pl2 in
@@ -77,7 +85,15 @@ let compute_lft_sets prog mir : lifetime -> PpSet.t =
         )
       | Icall (_fn, args, retpl, _) ->
           (* Contraintes d'appel de fonction *)
-          List.iter (fun argpl -> unify_typs retpl argpl) args
+          let param_typs, ret_typ, outlives_list = fn_prototype_fresh prog fn in
+          List.iter2
+            (fun argpl param_typ ->
+              let arg_typ = typ_of_place prog mir argpl in
+              unify_lft (param_typ, arg_typ))
+            args param_typs;
+          let ret_typ_actual = typ_of_place prog mir retpl in
+          unify_lft (ret_typ, ret_typ_actual);
+          List.iter add_outlives outlives_list
       | _ -> ()
     )
     mir.minstrs;
