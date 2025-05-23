@@ -116,12 +116,20 @@ let go prog mir : analysis_results =
           in
           let state = assign pl state in
           go next state
+      | Iassign (pl, RVbinop (_, pl1, pl2), next) ->
+          let state = move_or_copy pl1 state in
+          let state = move_or_copy pl2 state in
+          let state = assign pl state in
+          go next state
+      | Iassign (pl, RVunop (_, pl1), next) ->
+          let state = move_or_copy pl1 state in
+          let state = assign pl state in
+          go next state
+      | Iassign (pl, RVplace pl1, next) ->
+          let state = move_or_copy pl1 state in
+          let state = assign pl state in
+          go next state
       | Iassign (pl, rv, next) ->
-          let state =
-            match rv with
-            | RVplace pl_src -> move_or_copy pl_src state
-            | _ -> state
-          in
           let state = assign pl state in
           go next state
 

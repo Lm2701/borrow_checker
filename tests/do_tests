@@ -20,7 +20,7 @@ do
 
     if grep -q BAD "$f"
     then
-        if [[ $ret != 1 ]]
+        if [[ $ret == 0 ]]
         then
           echo Test $f: should return an error, but minirust returned code $ret.
         fi

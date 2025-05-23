@@ -1,2 +1,1 @@
-File "", line 0, characters 0-0:
-Missing outlives constraint in function prototype: ''d : ''c
+Fatal error: exception Failure("Missing outlives constraint in function prototype")

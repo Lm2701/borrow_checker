@@ -51,6 +51,9 @@ val mk_subst : lifetime list -> lifetime list -> subst
 val subst_typ : subst -> full_typ -> full_typ
 (** Applying a substitution to a type. *)
 
+val subst_fields_types : Ast.program -> string -> lifetime list -> full_typ list
+(** Applying a substitution to the fields of a struct. *)
+
 val fields_types_fresh : Ast.program -> string -> full_typ list * full_typ
 (** Given a {v struct v} identifier, instantiate this {v struct v} with fresh lifetime variables, then
     returns the (substituted) type of its fields, and the (substituted) {v struct v} type. *)

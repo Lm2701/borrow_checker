@@ -5,9 +5,9 @@
 open Type
 open Minimir
 open Active_borrows
+open Ast
 
 
-let dummy_loc = (Lexing.dummy_pos, Lexing.dummy_pos)
 (* This function computes the set of alive lifetimes at every program point. *)
 let compute_lft_sets prog mir : lifetime -> PpSet.t =
 
@@ -42,10 +42,26 @@ let compute_lft_sets prog mir : lifetime -> PpSet.t =
 
     SUGGESTION: use functions [typ_of_place], [fields_types_fresh] and [fn_prototype_fresh].
   *)
-  let unify_typs typ1 typ2 =
-  let lfts1 = LSet.elements (free_lfts typ1) in
-  let lfts2 = LSet.elements (free_lfts typ2) in
-  List.iter2 unify_lft lfts1 lfts2
+  let rec unify_typs typ1 typ2 =
+  match typ1, typ2 with
+  | Tunit, Tunit -> ()
+  | Ti32, Ti32 -> ()
+  | Tbool, Tbool -> ()
+  | Tborrow (lft1, mut1, t1), Tborrow (lft2, mut2, t2) ->
+    unify_lft lft1 lft2;
+    unify_typs t1 t2;
+    if mut1 <> mut2 then
+      failwith "Cannot unify mutable and immutable borrows."
+  | Tstruct (s1, lfts1), Tstruct (s2, lfts2) ->
+    if s1 <> s2 then
+      failwith "Cannot unify different structs.";
+    List.iter2 (fun lft1 lft2 -> unify_lft lft1 lft2) lfts1 lfts2;
+    let field1 = subst_fields_types prog s1 lfts1 in
+    let field2 = subst_fields_types prog s2 lfts2 in
+    List.iter2 (fun typ1 typ2 -> unify_typs typ1 typ2) field1 field2
+  | _ -> failwith "Cannot unify types."
+
+
   in
   let unify_typs_places pl1 pl2 =
     let typ1 = typ_of_place prog mir pl1 in
@@ -207,6 +223,7 @@ let compute_lft_sets prog mir : lifetime -> PpSet.t =
         (Option.value ~default:PpSet.empty (LMap.find_opt lft !living)))
 
 let borrowck prog mir =
+  let field_sources : (place, place) Hashtbl.t = Hashtbl.create 17 in
   (* We check initializedness requirements for every instruction. *)
   let uninitialized_places = Uninitialized_places.go prog mir in
   Array.iteri
@@ -309,10 +326,7 @@ let borrowck prog mir =
           | PpInCaller lft' ->
               let declared = outlives_transitive lft lft' in
               if not declared then
-                Error.error
-                  dummy_loc
-                  "Missing outlives constraint in function prototype: '%s : '%s"
-                  (string_of_lft lft') (string_of_lft lft)
+                failwith "Missing outlives constraint in function prototype"
           | _ -> ())
         ppset)
     lft_sets_map;
@@ -395,25 +409,29 @@ let borrowck prog mir =
       | Iassign (_, RVborrow (mut, pl), _) ->
           if conflicting_borrow (mut = Mut) pl then
             Error.error loc "There is a borrow conflicting this borrow."
-      | Iassign (_, RVmake (_, pls), _) ->
+      | Iassign (pl, RVmake (sid, pls), _) ->
+        let struct_decl = get_struct_def prog sid in
+        List.iter2 (fun (field_id, field_typ) pl_arg ->
+          match field_typ with
+          | Tborrow (_, _, _) ->
+              let field_place = PlField (pl, field_id.id) in
+              Hashtbl.replace field_sources field_place pl_arg
+          | _ -> ()
+        ) struct_decl.sfields pls;
         List.iter check_use pls
       | Iassign (_, RVplace pl, _) ->
         check_use pl;
-        (*(match pl with
-          | PlLocal l ->
-              (* Pour chaque struct vivante, vérifie ses champs *)
-              Hashtbl.iter (fun l' typ' ->
-                match typ' with
-                | Tstruct (sid, _) ->
-                    let fields, _ = fields_types_fresh prog sid in
-                    List.iter (fun (field_name, _) ->
-                      let field_place = PlField (PlLocal l', field_name) in
-                      if is_subplace field_place pl && field_place <> pl then
-                        check_use field_place
-                    ) fields
-                | _ -> ()
-              ) mir.mlocals
-          | _ -> ())*)
+        Hashtbl.iter (fun field_place src_pl ->
+          (* Si src_pl est une référence, on suit la chaîne *)
+          let rec resolve_reference pl =
+            match Hashtbl.find_opt field_sources pl with
+            | Some inner_pl -> resolve_reference inner_pl
+            | None -> pl
+          in
+          let resolved_src = resolve_reference src_pl in
+          if is_subplace resolved_src pl || is_subplace pl resolved_src then
+            check_use field_place
+        ) field_sources;
       | Iassign (_, RVbinop (_, pl1, pl2), _) ->
         check_use pl1;
         check_use pl2
