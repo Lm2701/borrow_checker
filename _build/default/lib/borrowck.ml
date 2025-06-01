@@ -51,15 +51,17 @@ let compute_lft_sets prog mir : lifetime -> PpSet.t =
     unify_lft lft1 lft2;
     unify_typs t1 t2;
     if mut1 <> mut2 then
-      failwith "Cannot unify mutable and immutable borrows."
+      (Printf.printf "Cannot unify mutable and immutable borrows";
+      failwith "Cannot unify mutable and immutable borrows.")
   | Tstruct (s1, lfts1), Tstruct (s2, lfts2) ->
     if s1 <> s2 then
-      failwith "Cannot unify different structs.";
+      (Printf.printf "Cannot unify different structs";
+      failwith "Cannot unify different structs.");
     List.iter2 (fun lft1 lft2 -> unify_lft lft1 lft2) lfts1 lfts2;
     let field1 = subst_fields_types prog s1 lfts1 in
     let field2 = subst_fields_types prog s2 lfts2 in
     List.iter2 (fun typ1 typ2 -> unify_typs typ1 typ2) field1 field2
-  | _ -> failwith "Cannot unify types."
+  | _ ->()
 
 
   in
@@ -326,7 +328,8 @@ let borrowck prog mir =
           | PpInCaller lft' ->
               let declared = outlives_transitive lft lft' in
               if not declared then
-                failwith "Missing outlives constraint in function prototype"
+                (Printf.printf "Missing outlives constraint";
+                failwith "Missing outlives constraint in function prototype")
           | _ -> ())
         ppset)
     lft_sets_map;

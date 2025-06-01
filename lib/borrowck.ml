@@ -59,7 +59,7 @@ let compute_lft_sets prog mir : lifetime -> PpSet.t =
     let field1 = subst_fields_types prog s1 lfts1 in
     let field2 = subst_fields_types prog s2 lfts2 in
     List.iter2 (fun typ1 typ2 -> unify_typs typ1 typ2) field1 field2
-  | _ -> failwith "Cannot unify types."
+  | _ ->()
 
 
   in
