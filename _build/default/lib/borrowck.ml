@@ -435,21 +435,25 @@ let borrowck prog mir =
       in
 
       match instr with
-      | Iassign (_, RVunop (_, pl), _) -> check_use pl
+      | Iassign (_, RVunop (_, pl), _) -> Printf.printf "Iassign RVunop\n"; check_use pl
       | Iassign (_, RVborrow (mut, pl), _) ->
+          Printf.printf "Iassign RVborrow\n";
           if conflicting_borrow (mut = Mut) pl then
             Error.error loc "There is a borrow conflicting this borrow."
       | Iassign (pl, RVmake (sid, pls), _) ->
-        let struct_decl = get_struct_def prog sid in
-        List.iter2 (fun (field_id, field_typ) pl_arg ->
-          match field_typ with
+        Printf.printf "Iassign RVmake\n";
+        let field_typs, _ = fields_types_fresh prog sid in
+        List.iteri
+        (fun index pl_arg ->
+          match List.nth field_typs index with
           | Tborrow (_, _, _) ->
-              let field_place = PlField (pl, field_id.id) in
+              let field_place = PlField (pl, string_of_int index) in
               Hashtbl.replace field_sources field_place pl_arg
-          | _ -> ()
-        ) struct_decl.sfields pls;
+          | _ -> ())
+        pls;
         List.iter check_use pls
       | Iassign (_, RVplace pl, _) ->
+        Printf.printf "Iassign RVplace\n";
         check_use pl;
         Hashtbl.iter (fun field_place src_pl ->
           (* Si src_pl est une référence, on suit la chaîne *)
@@ -461,19 +465,27 @@ let borrowck prog mir =
           let resolved_src = resolve_reference src_pl in
           if is_subplace resolved_src pl || is_subplace pl resolved_src then
             check_use field_place
-        ) field_sources;
+        ) field_sources
       | Iassign (_, RVbinop (_, pl1, pl2), _) ->
+        Printf.printf "Iassign RVbinop\n";
         check_use pl1;
         check_use pl2
       | Icall (_, pls, _, _) ->
+        Printf.printf "Icall\n";
+        
         List.iter check_use pls
       | Ireturn ->
+        Printf.printf "Ireturn\n";
         (match Hashtbl.find_opt mir.mlocals Lret with
           | Some typ_ret ->
               (match typ_ret with
               | Tunit -> ()
               | _ -> check_use (PlLocal Lret))
           | None -> ())
+      | Ideinit (l, _) ->
+        Printf.printf "Ideinit\n";
+        if conflicting_borrow_no_deref (PlLocal l) then
+          Error.error loc "A local declared here leaves its scope while still being borrowed."
       | _ -> () 
     )
     mir.minstrs
