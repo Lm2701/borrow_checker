@@ -6,6 +6,7 @@ open Type
 open Minimir
 open Active_borrows
 open Ast
+(*open Printf*)
 
 
 (* This function computes the set of alive lifetimes at every program point. *)
@@ -83,6 +84,13 @@ let compute_lft_sets prog mir : lifetime -> PpSet.t =
       List.fold_left2 (fun s l1 l2 -> (l1, l2) :: s) subst lfts1 lfts2
     | _ -> subst
   in
+  let outlives_find (lft':lifetime) (lft:lifetime) = let t = LMap.find_opt lft' (!outlives) in
+    match t with
+    | Some (s) -> (match LSet.find_opt lft s with 
+      | Some _ -> true
+      | _ -> false)
+    | _ -> false
+  in
   (* Génération des contraintes *)
   Array.iter
     (fun (instr, _loc) ->
@@ -106,17 +114,39 @@ let compute_lft_sets prog mir : lifetime -> PpSet.t =
             unify_typs typ (snd (fields_types_fresh prog s))
           | RVborrow (_, pl2) ->
               (* Reborrow: le lifetime du borrow doit être plus court que le lifetime du borrow du déréférencement *)
-              let typ = typ_of_place prog mir pl2 in
-              let rec collect_lifetimes t acc =
-                match t with
-                | Tborrow (lft, _, t') -> collect_lifetimes t' (lft :: acc)
-                | _ -> acc
-              in
-              let lfts = collect_lifetimes typ [] in
-              let typ_l = typ_of_place prog mir pl in
-              (match typ_l with
-              | Tborrow (lft_new, _, _) ->
-                  List.iter (fun lft_old -> add_outlives (lft_old, lft_new)) lfts
+              (match pl2 with 
+              | PlDeref _ ->
+                let rec typ_of_deref pl = 
+                  match pl with
+                  | PlDeref pl' -> typ_of_deref pl'
+                  | PlLocal l -> Hashtbl.find mir.mlocals l
+                  | PlField (pl', _) -> typ_of_deref pl'
+                in
+                let typ = typ_of_deref pl2 in
+                (*let rec print_typ t  = match t with 
+                | Tunit -> "unit"
+                | Ti32 -> "i32"
+                | Tbool -> "bool"
+                | Tstruct (name, lfts) ->
+                    if lfts = [] then sprintf "struct %s" name
+                    else 
+                    sprintf "struct %s<%s>" name "lifetimes"
+                | Tborrow (lft, mut, t) ->
+                    let mut_str = match mut with Mut -> "mut " | NotMut -> "" in
+                    sprintf "&%s%s %s" mut_str "lifetimes" (print_typ t)
+                in 
+                printf "%s" (print_typ typ);*)
+                let rec collect_lifetimes t acc =
+                  match t with
+                  | Tborrow (lft, _, t') -> collect_lifetimes t' (lft :: acc)
+                  | _ -> acc
+                in
+                let lfts = collect_lifetimes typ [] in
+                let typ_l = typ_of_place prog mir pl in
+                (match typ_l with
+                | Tborrow (lft_new, _, _) ->
+                    List.iter (fun (lft_old:lifetime) -> if (outlives_find lft_new lft_old) then failwith "The borrow is not shorter than the deref borrow" else add_outlives (lft_old, lft_new)) lfts
+                | _ -> ())
               | _ -> ())
           | _ -> ())
         )
