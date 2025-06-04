@@ -20,7 +20,6 @@ type analysis_results = label -> BSet.t
 let go prog lft_sets mir : analysis_results =
   (* The dataflow analysis is computed using the Fix library.
     It requires us to provide: *)
-
   (* - A description of the set of instructions. *)
   let module Instrs = struct let n = Array.length mir.minstrs end in
   (* - A description of "properties", the abstract domain of the analysis. Here we

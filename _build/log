@@ -13,74 +13,20 @@
 #  ; build_dir = In_build_dir "default"
 #  ; instrument_with = []
 #  }
-$ /workspaces/borrow_checker/_opam/bin/ocamlc.opt -config > /tmp/dune_6dc81c_output
+$ /workspaces/borrow_checker/_opam/bin/ocamlc.opt -config > /tmp/dune_c6dc54_output
 $ (cd _build/default/minirust && ../tests/do_tests)
 > Running test 01.rs...
-> Ireturn
 > Running test 02.rs...
-> Iassign RVbinop
-> Ireturn
 > Running test 03.rs...
-> Ireturn
-> Ireturn
 > Running test 04.rs...
-> Iassign RVplace
-> Iassign RVplace
-> Ideinit
-> Iassign RVplace
-> Ireturn
-> Ideinit
-> Ireturn
-> Ireturn
-> Ireturn
 > Running test 05.rs...
-> Ireturn
-> Ireturn
 > Running test 06.rs...
-> Ireturn
-> Ireturn
 > Running test 07.rs...
-> Iassign RVmake
-> Ireturn
 > Running test 08.rs...
-> Icall
-> Icall
-> Ideinit
-> Ideinit
-> Ireturn
-> Ireturn
-> Iassign RVplace
-> Icall
-> Icall
-> Ideinit
-> Ideinit
-> Ideinit
-> Ireturn
-> Iassign RVplace
-> Ireturn
 > Running test 09.rs...
-> Ideinit
-> Ideinit
-> Ireturn
-> Ireturn
 > Running test 10.rs...
 > Running test 11.rs...
-> Iassign RVbinop
-> Iassign RVplace
-> Iassign RVbinop
-> Ideinit
-> Iassign RVplace
-> Iassign RVbinop
-> Ideinit
-> Ideinit
-> Ideinit
-> Ideinit
-> Ireturn
 > Running test 12.rs...
-> Iassign RVplace
-> Iassign RVplace
-> Iassign RVplace
-> Ireturn
 > Running test 13.rs...
 > Running test 14.rs...
 > Running test 15.rs...
@@ -95,456 +41,83 @@ $ (cd _build/default/minirust && ../tests/do_tests)
 > Running test 24.rs...
 > Running test 25.rs...
 > Running test 26.rs...
-> Iassign RVborrow
-> Ireturn
-> Iassign RVborrow
-> Icall
-> Ideinit
-> Iassign RVplace
-> Ideinit
-> Ideinit
-> Ireturn
 > Running test 27.rs...
 > Running test 28.rs...
 > Running test 29.rs...
 > Running test 30.rs...
-> Ireturn
-> Icall
-> Iassign RVplace
-> Icall
-> Icall
-> Ideinit
-> Icall
-> Ideinit
-> Icall
-> Ideinit
-> Icall
-> Ideinit
-> Ideinit
-> Ideinit
-> Ireturn
-> Ireturn
 > Running test 31.rs...
-> Ireturn
 > Running test 32.rs...
 > Running test 33.rs...
-> Ireturn
-> Ireturn
 > Running test 34.rs...
-> Ireturn
-> Ireturn
-> Icall
-> Icall
-> Ideinit
-> Iassign RVmake
-> Icall
-> Ideinit
-> Ideinit
-> Ireturn
-> Ireturn
 > Running test 35.rs...
-> Ireturn
-> Ireturn
 > Running test 36.rs...
-> Ireturn
-> Icall
-> Icall
-> Ideinit
-> Icall
-> Ideinit
-> Icall
-> Ideinit
-> Ideinit
-> Ireturn
-> Ireturn
-> Ireturn
 > Running test 37.rs...
-> Ireturn
 > Running test 38.rs...
-> Iassign RVplace
-> Iassign RVbinop
-> Ideinit
-> Ireturn
 > Running test 39.rs...
 > Running test 40.rs...
-> Ireturn
 > Running test 41.rs...
-> Iassign RVplace
-> Iassign RVbinop
-> Ideinit
-> Ideinit
-> Ideinit
-> Ireturn
 > Running test 42.rs...
-> Iassign RVborrow
-> Iassign RVmake
-> Ideinit
-> Ideinit
-> Iassign RVplace
-> Iassign RVbinop
-> Ideinit
-> Ideinit
-> Ireturn
 > Test 42.rs: should return an error, but minirust returned code 0.
 > Running test 43.rs...
-> Iassign RVborrow
-> Iassign RVmake
-> Ideinit
-> Ideinit
-> Iassign RVplace
-> Iassign RVbinop
-> Ideinit
-> Ideinit
-> Ireturn
 > Running test 44.rs...
-> Iassign RVborrow
-> Iassign RVmake
-> Ideinit
-> Ideinit
-> Iassign RVplace
-> Icall
-> Iassign RVbinop
-> Ideinit
-> Ideinit
-> Ireturn
-> Ireturn
 > Running test 45.rs...
-> Iassign RVborrow
-> Iassign RVmake
-> Ideinit
-> Ideinit
-> Iassign RVplace
-> Icall
-> Iassign RVbinop
-> Ideinit
-> Ideinit
-> Ireturn
-> Ireturn
 > Test 45.rs: should return an error, but minirust returned code 0.
 > Running test 46.rs...
-> Iassign RVborrow
-> Iassign RVplace
 > Running test 47.rs...
-> Iassign RVborrow
-> Iassign RVmake
-> Ideinit
-> Ideinit
-> Iassign RVplace
-> Iassign RVborrow
-> Ideinit
-> Ideinit
-> Ideinit
-> Ireturn
 > Test 47.rs: should return an error, but minirust returned code 0.
 > Running test 48.rs...
-> Iassign RVborrow
-> Iassign RVmake
-> Ideinit
-> Ideinit
-> Iassign RVplace
-> Iassign RVborrow
-> Ideinit
-> Ideinit
-> Ideinit
-> Ireturn
 > Test 48.rs: should return an error, but minirust returned code 0.
 > Running test 49.rs...
-> Ireturn
-> Iassign RVborrow
-> Iassign RVmake
-> Ideinit
-> Ideinit
-> Iassign RVplace
-> Icall
-> Ideinit
-> Ideinit
-> Ideinit
-> Ireturn
 > Test 49.rs: should return an error, but minirust returned code 0.
 > Running test 50.rs...
-> Iassign RVborrow
-> Iassign RVborrow
-> Ideinit
-> Ideinit
-> Ideinit
-> Ireturn
 > Running test 51.rs...
-> Iassign RVborrow
-> Iassign RVplace
-> Ideinit
-> Ireturn
 > Running test 52.rs...
-> Iassign RVborrow
-> Iassign RVplace
-> Ideinit
-> Ireturn
 > Running test 53.rs...
-> Iassign RVborrow
 > Running test 54.rs...
-> Iassign RVborrow
 > Running test 55.rs...
 > Running test 56.rs...
 > Running test 57.rs...
-> Iassign RVplace
-> Ireturn
 > Running test 58.rs...
-> Iassign RVplace
-> Ireturn
-> Iassign RVplace
-> Ireturn
-> Iassign RVplace
-> Ireturn
 > Running test 59.rs...
 > Running test 60.rs...
 > Running test 61.rs...
 > Running test 62.rs...
-> Iassign RVborrow
-> Ireturn
 > Running test 63.rs...
 > Running test 64.rs...
-> Iassign RVborrow
-> Ireturn
 > Running test 65.rs...
-> Iassign RVborrow
-> Icall
-> Ideinit
-> Ireturn
-> Ireturn
 > Running test 66.rs...
 > Running test 67.rs...
-> Iassign RVplace
-> Iassign RVborrow
-> Iassign RVplace
-> Iassign RVmake
-> Iassign RVplace
-> Icall
-> Iassign RVplace
-> Ideinit
-> Ideinit
-> Ideinit
-> Ideinit
-> Ideinit
-> Ideinit
-> Ireturn
-> Iassign RVplace
-> Ireturn
-> Test 67.rs: should return an error, but minirust returned code 0.
 > Running test 68.rs...
-> Iassign RVborrow
-> Icall
-> Ideinit
-> Ireturn
-> Ireturn
 > Running test 69.rs...
-> Iassign RVborrow
 > Running test 70.rs...
-> Iassign RVborrow
-> Iassign RVborrow
-> Iassign RVborrow
-> Icall
-> Ideinit
-> Ideinit
-> Ideinit
-> Ideinit
-> Ideinit
-> Ireturn
-> Ireturn
 > Test 70.rs: should return an error, but minirust returned code 0.
 > Running test 71.rs...
-> Iassign RVmake
-> Ideinit
-> Ideinit
-> Iassign RVmake
-> Ideinit
-> Iassign RVborrow
-> Iassign RVborrow
-> Iassign RVplace
-> Iassign RVbinop
-> Ideinit
-> Iassign RVborrow
-> Iassign RVbinop
-> Iassign RVbinop
-> Ideinit
-> Iassign RVborrow
-> Iassign RVplace
-> Iassign RVborrow
-> Iassign RVbinop
-> Iassign RVbinop
-> Ideinit
-> Iassign RVplace
-> Iassign RVbinop
-> Ideinit
-> Iassign RVborrow
-> Iassign RVborrow
-> Iassign RVborrow
-> Iassign RVbinop
-> Iassign RVbinop
-> Ideinit
-> Iassign RVplace
-> Iassign RVbinop
-> Ideinit
-> Ideinit
-> Ideinit
-> Ideinit
-> Ideinit
-> Ideinit
-> Ideinit
-> Ideinit
-> Ideinit
-> Ideinit
-> Ideinit
-> Ideinit
-> Ideinit
-> Ireturn
 > Running test 72.rs...
-> Iassign RVmake
-> Ideinit
-> Ideinit
-> Iassign RVmake
-> Ideinit
-> Iassign RVborrow
-> Iassign RVborrow
-> Iassign RVborrow
-> Ideinit
-> Iassign RVplace
-> Ideinit
-> Ideinit
-> Ideinit
-> Ideinit
-> Ideinit
-> Ireturn
 > Test 72.rs: should return an error, but minirust returned code 0.
 > Running test 73.rs...
-> Iassign RVmake
-> Ideinit
-> Ideinit
-> Iassign RVmake
-> Ideinit
-> Iassign RVborrow
-> Iassign RVborrow
-> Iassign RVborrow
-> Ideinit
-> Iassign RVplace
-> Ideinit
-> Ideinit
-> Ideinit
-> Ideinit
-> Ideinit
-> Ireturn
 > Test 73.rs: should return an error, but minirust returned code 0.
 > Running test 74.rs...
-> Iassign RVplace
 > Running test 75.rs...
-> Iassign RVmake
-> Ideinit
-> Ideinit
-> Iassign RVmake
-> Ideinit
-> Iassign RVborrow
-> Iassign RVborrow
-> Iassign RVplace
-> Iassign RVplace
-> Ideinit
-> Ideinit
-> Ideinit
-> Ideinit
-> Ideinit
-> Ideinit
-> Ireturn
 > Test 75.rs: should return an error, but minirust returned code 0.
 > Running test 76.rs...
-> Iassign RVmake
-> Ideinit
-> Ideinit
-> Iassign RVmake
-> Ideinit
-> Iassign RVborrow
-> Iassign RVborrow
-> Iassign RVplace
-> Ideinit
-> Ideinit
-> Ideinit
-> Ideinit
-> Ideinit
-> Ireturn
 > Test 76.rs: should return an error, but minirust returned code 0.
 > Running test 77.rs...
-> Ireturn
-> Iassign RVmake
-> Ideinit
-> Iassign RVborrow
-> Icall
 > Running test 78.rs...
-> Iassign RVborrow
-> Iassign RVplace
 > Running test 79.rs...
-> Iassign RVborrow
 > Running test 80.rs...
-> Iassign RVborrow
-> Iassign RVmake
-> Ideinit
-> Ideinit
-> Iassign RVmake
-> Ideinit
-> Iassign RVborrow
-> Iassign RVborrow
-> Iassign RVplace
-> Ideinit
-> Ideinit
-> Ideinit
-> Ideinit
-> Ideinit
-> Ideinit
-> Ireturn
 > Test 80.rs: should return an error, but minirust returned code 0.
 > Running test 81.rs...
 > Running test 82.rs...
-> Iassign RVplace
-> Iassign RVplace
-> Ideinit
-> Ireturn
 > Running test 83.rs...
-> Iassign RVborrow
-> Ireturn
 > Running test 84.rs...
-> Iassign RVborrow
-> Ireturn
 > Running test 85.rs...
-> Iassign RVborrow
 > Running test 86.rs...
 > Running test 87.rs...
 > Running test 88.rs...
 > Running test 89.rs...
-> Iassign RVborrow
-> Iassign RVborrow
-> Ideinit
-> Iassign RVplace
-> Ideinit
-> Ideinit
-> Ideinit
-> Ireturn
 > Running test 90.rs...
-> Iassign RVborrow
-> Ireturn
 > Test 90.rs: should return an error, but minirust returned code 0.
 > Running test 91.rs...
-> Iassign RVborrow
-> Iassign RVmake
-> Ideinit
-> Iassign RVmake
-> Ideinit
-> Ireturn
 > Running test 92.rs...
 > Running test 93.rs...
-> Iassign RVborrow
-> Iassign RVborrow
-> Icall
-> Ideinit
-> Ideinit
-> Ideinit
-> Ireturn
-> Ireturn
 > Running test 94.rs...
-> Iassign RVmake
-> Iassign RVborrow
-> Iassign RVmake

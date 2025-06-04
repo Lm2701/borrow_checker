@@ -1,0 +1,1 @@
+Fatal error: exception Failure("The return borrow has not the same lifetime as the borrow")
