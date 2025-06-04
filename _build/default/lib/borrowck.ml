@@ -133,40 +133,42 @@ let compute_lft_sets prog mir : lifetime -> PpSet.t =
             unify_typs typ (snd (fields_types_fresh prog s))
           | RVborrow (_, pl2) ->
               (* Reborrow: le lifetime du borrow doit être plus court que le lifetime du borrow du déréférencement *)
-              (match pl2 with 
-              | PlDeref _ ->
-                let rec typ_of_deref pl = 
+              let rec typ_of_deref pl = 
                   match pl with
                   | PlDeref pl' -> typ_of_deref pl'
                   | PlLocal l -> Hashtbl.find mir.mlocals l
                   | PlField (pl', _) -> typ_of_deref pl'
-                in
+              in
+              (match pl with
+                | PlLocal Lret ->
+                    let typ_ret = Hashtbl.find mir.mlocals Lret in
+                    let typ_val = typ_of_deref pl2 in
+                    (match typ_ret, typ_val with
+                      | Tborrow(lft, _, t), Tborrow(lft', _, t') -> if ((LMap.find_opt lft mir.moutlives_graph <> None) && (LMap.find_opt lft' mir.moutlives_graph <> None)) && not((moutlives_find lft' lft) || (outlives_find lft' lft)) then failwith "The return borrow has not the same lifetime as the borrow"
+                      | Tborrow(lft,_,_), Tstruct(_,lfts) -> (match lfts with
+                        | [] -> failwith "The return borrow has not the same lifetime as the borrow"
+                        | lft'::_ -> if ((LMap.find_opt lft mir.moutlives_graph <> None) && (LMap.find_opt lft' mir.moutlives_graph <> None)) && not((moutlives_find lft' lft) || (outlives_find lft' lft)) then failwith "The return borrow has not the same lifetime as the borrow"
+                      )
+                      | _ -> ());
+                | _ -> ());
+              (match pl2 with 
+              | PlDeref _ ->
                 let typ = typ_of_deref pl2 in
-                (*let rec print_typ t  = match t with 
-                | Tunit -> "unit"
-                | Ti32 -> "i32"
-                | Tbool -> "bool"
-                | Tstruct (name, lfts) ->
-                    if lfts = [] then sprintf "struct %s" name
-                    else 
-                    sprintf "struct %s<%s>" name "lifetimes"
-                | Tborrow (lft, mut, t) ->
-                    let mut_str = match mut with Mut -> "mut " | NotMut -> "" in
-                    sprintf "&%s%s %s" mut_str "lifetimes" (print_typ t)
-                in 
-                printf "%s" (print_typ typ);*)
-                let rec collect_lifetimes t acc =
+                let rec collect_lifetimes_borrows t acc =
                   match t with
-                  | Tborrow (lft, _, t') -> collect_lifetimes t' (lft :: acc)
+                  | Tborrow (lft, _, t') -> collect_lifetimes_borrows t' (lft :: acc)
                   | _ -> acc
                 in
-                let lfts = collect_lifetimes typ [] in
+                let lfts = collect_lifetimes_borrows typ [] in
                 let typ_l = typ_of_place prog mir pl in
                 (match typ_l with
                 | Tborrow (lft_new, _, _) ->
                     List.iter (fun (lft_old:lifetime) -> if (outlives_find lft_new lft_old) then failwith "The borrow is not shorter than the deref borrow" else add_outlives (lft_old, lft_new)) lfts
-                | _ -> ())
-              | _ -> ())
+                | _ -> ());
+              
+              | _ -> ()) ;
+              
+              
           | _ -> ())
         )
       | Icall (fn, args, retpl, _) ->         
@@ -187,17 +189,6 @@ let compute_lft_sets prog mir : lifetime -> PpSet.t =
         let ret_typ_actual = typ_of_place prog mir retpl in
         unify_typs ret_typ ret_typ_actual;
         (* Ajout des contraintes outlives avec substitution *)
-        (* DEBUG: Affichage de la substitution et des contraintes outlives *)
-        (*Printf.printf "Substitution lifetimes:@.";
-        List.iter (fun (l1, l2) ->
-          Printf.printf "  %s -> %s@." (string_of_lft l1) (string_of_lft l2)
-        ) subst;
-        Printf.printf "Contraintes outlives (après substitution):@.";
-        List.iter (fun (l1, l2) ->
-          let l1' = subst_lft subst l1 in
-          let l2' = subst_lft subst l2 in
-          Printf.printf "  %s : %s@. \n" (string_of_lft l1') (string_of_lft l2')
-        ) outlives_list;*)
         List.iter (fun (l1, l2) -> add_outlives (subst_lft subst l1, subst_lft subst l2)) outlives_list
       | Ireturn -> 
         (match Hashtbl.find_opt mir.mlocals Lret with
