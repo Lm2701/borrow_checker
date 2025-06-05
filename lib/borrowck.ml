@@ -198,6 +198,7 @@ let compute_lft_sets prog mir : lifetime -> PpSet.t =
                 | Tunit -> ()
                 | _ -> unify_typs typ_ret typ_val)
           | None -> ())
+        
       | _ -> ()
     )
     mir.minstrs;
@@ -226,24 +227,80 @@ let compute_lft_sets prog mir : lifetime -> PpSet.t =
        (those in [mir.mgeneric_lfts]) should be alive during the whole execution of the
        function.
   *)
-  Array.iteri
-    (fun lbl _instr ->
-      let ppoint = PpLocal lbl in
-      let locals = live_locals lbl in
-      LocSet.iter
-        (fun l ->
-          match Hashtbl.find_opt mir.mlocals l with
+
+  Array.iter
+    (fun (instr, _loc) ->
+      match instr with
+      | Iif(pl, lbl1, lbl2) ->
+          (* If [pl] is a place, then the lifetime of this place should be alive at the
+            program point where this instruction is executed. *)
+          (*let typ = typ_of_place prog mir pl in*)
+          let locals1 = live_locals lbl1 in
+          LocSet.iter
+            (fun l ->
+              match Hashtbl.find_opt mir.mlocals l with
+              | Some typ ->
+                LSet.iter (fun lft -> add_living (PpLocal lbl1) lft) (free_lfts typ)
+              | None -> ())
+            locals1;
+          let locals2 = live_locals lbl2 in
+          LocSet.iter
+            (fun l ->
+              match Hashtbl.find_opt mir.mlocals l with
+              | Some typ ->
+                LSet.iter (fun lft -> add_living (PpLocal lbl2) lft) (free_lfts typ)
+              | None -> ())
+            locals2;
+          List.iter (fun lft -> add_living (PpLocal lbl1) lft) mir.mgeneric_lfts;
+          List.iter (fun lft -> add_living (PpLocal lbl2) lft) mir.mgeneric_lfts;
+      | Igoto lbl ->
+          (* If this is a goto, then the lifetime of all live locals at the target label
+            should be alive at the program point where this instruction is executed. *)
+          let locals = live_locals lbl in
+          LocSet.iter
+            (fun l ->
+              match Hashtbl.find_opt mir.mlocals l with
+              | Some typ ->
+                LSet.iter (fun lft -> add_living (PpLocal lbl) lft) (free_lfts typ)
+              | None -> ())
+            locals;
+      | Iassign (pl, _, lbl) -> 
+          (* If [pl] is a place, then the lifetime of this place should be alive at the
+            program point where this instruction is executed. *)
+          (*let typ = typ_of_place prog mir pl in*)
+          let locals = live_locals lbl in
+          LocSet.iter
+            (fun l ->
+              match Hashtbl.find_opt mir.mlocals l with
+              | Some typ ->
+                LSet.iter (fun lft -> add_living (PpLocal lbl) lft) (free_lfts typ)
+              | None -> ())
+            locals;
+          List.iter (fun lft -> add_living (PpLocal lbl) lft) mir.mgeneric_lfts
+
+      | Icall (fn, args, retpl, lbl) ->
+          (* If the function returns a value, then the lifetime of this value should be alive at the
+            program point where this instruction is executed. *)
+          let ret_typ = Hashtbl.find mir.mlocals Lret in
+          LSet.iter (fun lft -> add_living (PpLocal lbl) lft) (free_lfts ret_typ);
+          (* If the function has parameters, then the lifetimes of these parameters should be alive at the
+            program point where this instruction is executed. *)
+          List.iter
+            (fun argpl ->
+              let typ = typ_of_place prog mir argpl in
+              LSet.iter (fun lft -> add_living (PpLocal lbl) lft) (free_lfts typ))
+            args;
+          List.iter (fun lft -> add_living (PpLocal lbl) lft) mir.mgeneric_lfts
+
+      | Ideinit (l, lbl) ->
+          (* If [l] is a local variable, then the lifetime of this local variable should be alive at the
+            program point where this instruction is executed. *)
+          (match Hashtbl.find_opt mir.mlocals l with
           | Some typ ->
-            LSet.iter (fun lft -> add_living ppoint lft) (free_lfts typ)
-          | None -> ())
-        locals
-    )
-    mir.minstrs;
-  
-  Array.iteri
-    (fun lbl _instr ->
-      let ppoint = PpLocal lbl in
-      List.iter (fun lft -> add_living ppoint lft) mir.mgeneric_lfts
+              LSet.iter (fun lft -> add_living (PpLocal lbl) lft) (free_lfts typ)
+          | None -> ());
+          List.iter (fun lft -> add_living (PpLocal lbl) lft) mir.mgeneric_lfts
+      | _ -> ()
     )
     mir.minstrs;
   
@@ -518,17 +575,6 @@ let borrowck prog mir =
       | Iassign (_, RVplace pl, _) ->
         (*Printf.printf "Iassign RVplace\n";*)
         check_use pl;
-        Hashtbl.iter (fun field_place src_pl ->
-          (* Si src_pl est une référence, on suit la chaîne *)
-          let rec resolve_reference pl =
-            match Hashtbl.find_opt field_sources pl with
-            | Some inner_pl -> resolve_reference inner_pl
-            | None -> pl
-          in
-          let resolved_src = resolve_reference src_pl in
-          if is_subplace resolved_src pl || is_subplace pl resolved_src then
-            check_use field_place
-        ) field_sources
       | Iassign (_, RVbinop (_, pl1, pl2), _) ->
         (*Printf.printf "Iassign RVbinop\n";*)
         check_use pl1;
