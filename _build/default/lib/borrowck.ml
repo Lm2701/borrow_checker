@@ -6,7 +6,6 @@ open Type
 open Minimir
 open Active_borrows
 open Ast
-(*open Printf*)
 
 
 (* This function computes the set of alive lifetimes at every program point. *)
@@ -227,7 +226,6 @@ let compute_lft_sets prog mir : lifetime -> PpSet.t =
        (those in [mir.mgeneric_lfts]) should be alive during the whole execution of the
        function.
   *)
-
   Array.iteri
     (fun lbl _instr ->
       let ppoint = PpLocal lbl in
@@ -334,6 +332,9 @@ let borrowck prog mir =
     mir.minstrs;
 
   (* We check the code honors the non-mutability of shared borrows. *)
+  (* TODO: check that we never write to shared borrows, and that we never create mutable borrows
+        below shared borrows. Function [place_mut] can be used to determine if a place is mutable, i.e., if it
+        does not dereference a shared borrow. *)
   Array.iteri
     (fun _ (instr, loc) ->
       let check_write pl =
@@ -346,7 +347,8 @@ let borrowck prog mir =
       in
       match instr with
       | Iassign (_, RVborrow (Mut, pl), _) ->
-          check_mut_borrow pl
+          check_mut_borrow pl;
+          check_write pl
       | Iassign (pl, _, _) | Icall (_, _, pl, _) ->
           check_write pl
       | _ -> ()
