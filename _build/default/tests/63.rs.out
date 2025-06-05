@@ -1,2 +1,0 @@
-File "63.rs", line 5, characters 5-14:
-Cannot create a mutable borrow below a shared borrow.

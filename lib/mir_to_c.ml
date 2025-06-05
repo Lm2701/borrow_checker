@@ -1,32 +1,53 @@
 (* filepath: /workspaces/borrow_checker/lib/mir_to_c.ml *)
 
 open Minimir
-open Type
 open Ast
 
 (* Helper function to convert a type to C syntax *)
 let rec typ_to_c typ =
   match typ with
-  | Tint -> "int"
+  | Ti32 -> "int"
   | Tbool -> "bool"
   | Tunit -> "void"
   | Tborrow (_, Mut, t) -> (typ_to_c t)^ "*"
   | Tborrow (_, NotMut, t) -> "const"^(typ_to_c t)^"*"
   | Tstruct (sid, _) -> Printf.sprintf "struct %s" sid
-  | _ -> failwith "Unsupported type"
 
 let local_to_c loc = 
   match loc with
   | Lparam s -> s
   | Lvar n -> Printf.sprintf "lvar_%d" n
   | Lret -> "ret"
-in
+
 let rec place_to_c pl =
   match pl with
   | PlLocal l -> local_to_c l
   | PlField (pl, field) -> Printf.sprintf "%s.%s" (place_to_c pl) field
   | PlDeref pl -> Printf.sprintf "*%s" (place_to_c pl)
 
+let string_of_const c =
+  match c with
+    | Ci32 s -> s
+    | Cbool true -> "true"
+    | Cbool false -> "false"
+
+let string_of_binop op = 
+  match op with
+  | Badd -> "+"
+  | Bsub -> "-"
+  | Bmul -> "*" 
+  | Bdiv -> "\\" 
+  | Bmod -> "mod"
+  | Beqeq -> "=="
+  | Bneq -> "!=" 
+  | Blt -> "<" 
+  | Ble -> "<="
+  | Bgt -> ">"
+  | Bge -> ">="
+let string_of_unop op = 
+  match op with
+  | Uneg -> ""
+  | Unot -> "not"
 (* Convert a single MIR instruction to C syntax *)
 let instr_to_c instr =
   match instr with
@@ -45,7 +66,7 @@ let instr_to_c instr =
       let args_str = String.concat ", " (List.map place_to_c args) in
       Printf.sprintf "%s = %s(%s);" (place_to_c retpl) fn args_str
   | Ideinit (l, _) ->
-      Printf.sprintf "// Deinitialize %s;" l
+      Printf.sprintf "// Deinitialize %s;" (local_to_c l)
   | Igoto lbl ->
       Printf.sprintf "goto label_%d;" lbl
   | Ireturn ->
@@ -57,8 +78,8 @@ let mir_to_c mir =
   let buf = Buffer.create 1024 in
   (* Generate variable declarations *)
   Hashtbl.iter
-    (fun name typ ->
-      Buffer.add_string buf (Printf.sprintf "%s %s;\n" (typ_to_c typ) name))
+    (fun loc typ ->
+      Buffer.add_string buf (Printf.sprintf "%s %s;\n" (typ_to_c typ) (local_to_c loc)))
     mir.mlocals;
 
   (* Generate instructions *)

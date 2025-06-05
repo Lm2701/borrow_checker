@@ -54,7 +54,10 @@ let compute_lft_sets prog mir : lifetime -> PpSet.t =
     if s1 <> s2 then
       failwith "Cannot unify different structs.";
     List.iter2 (fun lft1 lft2 -> unify_lft lft1 lft2) lfts1 lfts2;
-  | _ ->()
+  | Ti32, Ti32 ->()
+  | Tunit, Tunit -> ()
+  | Tbool, Tbool -> ()
+  | _ -> failwith "Error"
 
 
   in
@@ -154,27 +157,8 @@ let compute_lft_sets prog mir : lifetime -> PpSet.t =
     mir.minstrs;
 
 
-  
-
   (* If [lft] is a generic lifetime, [lft] is always alive at [PpInCaller lft]. *)
   List.iter (fun lft -> add_living (PpInCaller lft) lft) mir.mgeneric_lfts;
-  
-  (*let string_of_lifetime lft =
-    match lft with
-    | Lnamed s -> Printf.sprintf "%s" s
-    | Lanon n -> Printf.sprintf "%d" n
-  in
-  let string_of_ppoint ppoint =
-    match ppoint with
-    | PpLocal lbl -> Printf.sprintf "local %d" lbl
-    | PpInCaller lft -> Printf.sprintf "in caller of %s" (string_of_lifetime lft)
-  in
-  LMap.iter
-  (fun lft ppset ->
-    Printf.printf "Lifetime %s is alive at points: %s\n"
-      (string_of_lifetime lft)
-      (String.concat ", " (List.map string_of_ppoint (PpSet.elements ppset))))
-  !living;*)
 
   (* Now, we compute lifetime sets by finding the smallest solution of the constraints, using the
     Fix library. *)
@@ -367,7 +351,6 @@ let borrowck prog mir =
       (* Check a "use" (copy or move) of place [pl]. *)
       let check_use pl =
         let consumes = not (typ_is_copy prog (typ_of_place prog mir pl)) in
-        (*Printf.printf "consumes: %b\n" consumes;*)
         if conflicting_borrow consumes pl then
           Error.error loc "A borrow conflicts with the use of this place.";
         if consumes && contains_deref_borrow pl then
@@ -375,23 +358,18 @@ let borrowck prog mir =
       in
 
       match instr with
-      | Iassign (_, RVunop (_, pl), _) -> (*Printf.printf "Iassign RVunop\n";*) check_use pl
+      | Iassign (_, RVunop (_, pl), _) -> check_use pl
       | Iassign (_, RVborrow (mut, pl), _) ->
-          (*Printf.printf "Iassign RVborrow\n";*)
           if conflicting_borrow (mut = Mut) pl then
             Error.error loc "There is a borrow conflicting this borrow."
       | Iassign (pl, RVmake (sid, pls), _) ->
-        (*Printf.printf "Iassign RVmake\n";*)
         List.iter check_use pls
       | Iassign (_, RVplace pl, _) ->
-        (*Printf.printf "Iassign RVplace\n";*)
         check_use pl;
       | Iassign (_, RVbinop (_, pl1, pl2), _) ->
-        (*Printf.printf "Iassign RVbinop\n";*)
         check_use pl1;
         check_use pl2
       | Icall (_, pls, _, _) ->
-        (*Printf.printf "Icall\n";*)
         List.iter check_use pls
 
       | _ -> () 

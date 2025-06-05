@@ -54,7 +54,10 @@ let compute_lft_sets prog mir : lifetime -> PpSet.t =
     if s1 <> s2 then
       failwith "Cannot unify different structs.";
     List.iter2 (fun lft1 lft2 -> unify_lft lft1 lft2) lfts1 lfts2;
-  | _ ->()
+  | Ti32, Ti32 ->()
+  | Tunit, Tunit -> ()
+  | Tbool, Tbool -> ()
+  | _ -> failwith "Error"
 
 
   in

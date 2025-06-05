@@ -24,6 +24,9 @@ module Live_locals = Minirust__Live_locals
 (** @canonical Minirust.Minimir *)
 module Minimir = Minirust__Minimir
 
+(** @canonical Minirust.Mir_to_c *)
+module Mir_to_c = Minirust__Mir_to_c
+
 (** @canonical Minirust.Parser *)
 module Parser = Minirust__Parser
 
