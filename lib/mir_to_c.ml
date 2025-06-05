@@ -62,6 +62,8 @@ let instr_to_c instr =
   | Iassign (pl, RVmake (sid, pls), _) ->
       let fields = String.concat ", " (List.map place_to_c pls) in
       Printf.sprintf "%s = (%s){%s};" (place_to_c pl) sid fields
+  | Iassign (pl, RVborrow(_,pl2),_) -> Printf.sprintf "%s = %s;" (place_to_c pl) (place_to_c pl2)
+  | Iassign (pl, RVunit,_) -> Printf.sprintf "%s = void;" (place_to_c pl)
   | Icall (fn, args, retpl, _) ->
       let args_str = String.concat ", " (List.map place_to_c args) in
       Printf.sprintf "%s = %s(%s);" (place_to_c retpl) fn args_str
@@ -71,7 +73,8 @@ let instr_to_c instr =
       Printf.sprintf "goto label_%d;" lbl
   | Ireturn ->
       "return ret;"
-  | _ -> failwith "Unsupported instruction"
+  | Iif(pl,lbl1,lbl2) -> 
+    Printf.sprintf "if %s { goto label_%d; } else { goto label_%d ;}" (place_to_c pl) lbl1 lbl2
 
 (* Convert the entire MIR to C syntax *)
 let mir_to_c mir =

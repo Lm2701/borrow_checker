@@ -1,6 +1,5 @@
 (* Once you are done writing the code, remove this directive,
    whose purpose is to disable several warnings. *)
-[@@@warning "-26-27"]
 
 open Type
 open Minimir
@@ -68,9 +67,9 @@ let compute_lft_sets prog mir : lifetime -> PpSet.t =
   in
   let add_outlives_borrow_aux pl pl2 = 
     match (typ_of_place prog mir pl, typ_of_place prog mir pl2) with
-      | (Tborrow (lft1, _, t1), Tborrow (lft2, _, t2)) ->
+      | (Tborrow (lft1, _, _), Tborrow (lft2, _, _)) ->
           add_outlives (lft1, lft2);
-      | (Tborrow (lft1, _, t1), Tstruct (s2, lfts2)) ->
+      | (Tborrow (lft1, _, _), Tstruct (_, lfts2)) ->
           List.iter (fun lft' -> add_outlives (lft1, lft')) lfts2;
       | _ -> ()
   in
@@ -150,7 +149,7 @@ let compute_lft_sets prog mir : lifetime -> PpSet.t =
   | _ -> []
   in
   Array.iteri
-    (fun lbl (instr, _loc) ->
+    (fun lbl (_instr, _loc) ->
       LocSet.iter (fun loc -> List.iter (add_living (PpLocal lbl)) (lft_list (Hashtbl.find mir.mlocals loc))) (live_locals lbl);
       List.iter (add_living (PpLocal lbl)) mir.mgeneric_lfts
     )
@@ -171,7 +170,6 @@ let compute_lft_sets prog mir : lifetime -> PpSet.t =
         (Option.value ~default:PpSet.empty (LMap.find_opt lft !living)))
 
 let borrowck prog mir =
-  let field_sources : (place, place) Hashtbl.t = Hashtbl.create 17 in
   (* We check initializedness requirements for every instruction. *)
   let uninitialized_places = Uninitialized_places.go prog mir in
   Array.iteri
@@ -362,7 +360,7 @@ let borrowck prog mir =
       | Iassign (_, RVborrow (mut, pl), _) ->
           if conflicting_borrow (mut = Mut) pl then
             Error.error loc "There is a borrow conflicting this borrow."
-      | Iassign (pl, RVmake (sid, pls), _) ->
+      | Iassign (_, RVmake (_, pls), _) ->
         List.iter check_use pls
       | Iassign (_, RVplace pl, _) ->
         check_use pl;

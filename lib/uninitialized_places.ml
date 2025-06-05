@@ -1,6 +1,5 @@
 (* Once you are done writing the code, remove this directive,
    whose purpose is to disable several warnings. *)
-[@@@warning "-26-27-33"]
 
 (* You should read and understand active_borrows.ml *fully*, before filling the holes
   in this file. The analysis in this file follows the same structure. *)
@@ -129,7 +128,7 @@ let go prog mir : analysis_results =
           let state = move_or_copy pl1 state in
           let state = assign pl state in
           go next state
-      | Iassign (pl, rv, next) ->
+      | Iassign (pl, _, next) ->
           let state = assign pl state in
           go next state
 
