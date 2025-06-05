@@ -165,9 +165,10 @@ let compute_lft_sets prog mir : lifetime -> PpSet.t =
                 | Tborrow (lft_new, _, _) ->
                     List.iter (fun (lft_old:lifetime) -> if (outlives_find lft_new lft_old) then failwith "The borrow is not shorter than the deref borrow" else add_outlives (lft_old, lft_new)) lfts
                 | _ -> ());
+                
               
-              | _ -> ()) ;
-              
+              | _ ->  unify_typs_places pl pl2) ;
+             
               
           | _ -> ())
         )
@@ -219,7 +220,7 @@ let compute_lft_sets prog mir : lifetime -> PpSet.t =
   let live_locals = Live_locals.go mir in
 
   (* TODO: generate living constraints:
-     - Add living constraints corresponding to the fact that liftimes appearing free
+     - Add living constraints corresponding to the fact that lifetimes appearing free
        in the type of live locals at some program point should be alive at that
        program point.
      - Add living constraints corresponding to the fact that generic lifetime variables
@@ -251,6 +252,23 @@ let compute_lft_sets prog mir : lifetime -> PpSet.t =
 
   (* If [lft] is a generic lifetime, [lft] is always alive at [PpInCaller lft]. *)
   List.iter (fun lft -> add_living (PpInCaller lft) lft) mir.mgeneric_lfts;
+  
+  (*let string_of_lifetime lft =
+    match lft with
+    | Lnamed s -> Printf.sprintf "%s" s
+    | Lanon n -> Printf.sprintf "%d" n
+  in
+  let string_of_ppoint ppoint =
+    match ppoint with
+    | PpLocal lbl -> Printf.sprintf "local %d" lbl
+    | PpInCaller lft -> Printf.sprintf "in caller of %s" (string_of_lifetime lft)
+  in
+  LMap.iter
+  (fun lft ppset ->
+    Printf.printf "Lifetime %s is alive at points: %s\n"
+      (string_of_lifetime lft)
+      (String.concat ", " (List.map string_of_ppoint (PpSet.elements ppset))))
+  !living;*)
 
   (* Now, we compute lifetime sets by finding the smallest solution of the constraints, using the
     Fix library. *)
@@ -445,7 +463,7 @@ let borrowck prog mir =
         if consumes && contains_deref_borrow pl then
           Error.error loc "Moving a value out of a borrow."
       in
-      let string_of_local l =
+      (*let string_of_local l =
         match l with
         | Lparam p -> Printf.sprintf "param %s" p
         | Lret -> "return"
@@ -458,14 +476,19 @@ let borrowck prog mir =
         | PlField (pl', field_name) ->
             Printf.sprintf "field(%s, %s)" (string_of_place pl') field_name
       in
-      (*let print_active_borrows_info active_borrows_info =
+      let string_of_lft lft =
+        match lft with
+        | Lnamed s -> Printf.sprintf "named %s" s
+        | Lanon n -> Printf.sprintf "anon %d" n
+      in
+      let print_active_borrows_info active_borrows_info =
         Printf.printf "Active borrows info:\n";
         List.iter
           (fun bi ->
             Printf.printf "- Place: %s, Mutability: %s, Lifetime: %s\n"
               (string_of_place bi.bplace)
               (match bi.bmut with Mut -> "mutable" | NotMut -> "immutable")
-              ("lifetime"))
+              (string_of_lft bi.blft))
           active_borrows_info
       in
       print_active_borrows_info active_borrows_info;*)
