@@ -45,9 +45,6 @@ let compute_lft_sets prog mir : lifetime -> PpSet.t =
   
   let rec unify_typs typ1 typ2 =
   match typ1, typ2 with
-  | Tunit, Tunit -> ()
-  | Ti32, Ti32 -> ()
-  | Tbool, Tbool -> ()
   | Tborrow (lft1, mut1, t1), Tborrow (lft2, mut2, t2) ->
     unify_lft lft1 lft2;
     unify_typs t1 t2;
@@ -57,9 +54,6 @@ let compute_lft_sets prog mir : lifetime -> PpSet.t =
     if s1 <> s2 then
       failwith "Cannot unify different structs.";
     List.iter2 (fun lft1 lft2 -> unify_lft lft1 lft2) lfts1 lfts2;
-    let field1 = subst_fields_types prog s1 lfts1 in
-    let field2 = subst_fields_types prog s2 lfts2 in
-    List.iter2 (fun typ1 typ2 -> unify_typs typ1 typ2) field1 field2
   | _ ->()
 
 
@@ -69,31 +63,18 @@ let compute_lft_sets prog mir : lifetime -> PpSet.t =
     let typ2 = typ_of_place prog mir pl2 in
     unify_typs typ1 typ2
   in
-
-  let subst_lft subst lft =
-    match List.assoc_opt lft subst with
-    | Some lft' -> lft'
-    | None -> lft
+  let add_outlives_borrow_aux pl pl2 = 
+    match (typ_of_place prog mir pl, typ_of_place prog mir pl2) with
+      | (Tborrow (lft1, _, t1), Tborrow (lft2, _, t2)) ->
+          add_outlives (lft1, lft2);
+      | (Tborrow (lft1, _, t1), Tstruct (s2, lfts2)) ->
+          List.iter (fun lft' -> add_outlives (lft1, lft')) lfts2;
+      | _ -> ()
   in
-  let rec build_lft_subst param_typ arg_typ subst =
-    match param_typ, arg_typ with
-    | Tborrow (lft1, mut1, t1), Tborrow (lft2, mut2, t2) ->
-      let subst = (lft1, lft2) :: subst in
-      build_lft_subst t1 t2 subst
-    | Tstruct (_, lfts1), Tstruct (_, lfts2) ->
-      List.fold_left2 (fun s l1 l2 -> (l1, l2) :: s) subst lfts1 lfts2
-    | _ -> subst
-  in
-  let moutlives_find lft' lft = (match LMap.find_opt lft' mir.moutlives_graph with 
-        | Some s' -> LSet.mem lft s'
-        | None -> false)
-  in
-  let outlives_find (lft':lifetime) (lft:lifetime) = let t = LMap.find_opt lft' (!outlives) in
-    match t with
-    | Some (s) -> (match LSet.find_opt lft s with 
-      | Some _ -> true
-      | _ -> false)
-    | _ -> false
+  let rec add_outlives_borrow pl pl2 = match pl2 with
+    | PlDeref pl' -> add_outlives_borrow pl pl'
+    | PlField (pl', _) -> add_outlives_borrow_aux pl2 pl; add_outlives_borrow pl pl'
+    | PlLocal _ -> add_outlives_borrow_aux pl2 pl
   in
   (* Génération des contraintes *)
   Array.iter
@@ -102,102 +83,35 @@ let compute_lft_sets prog mir : lifetime -> PpSet.t =
       | Iassign (pl, rv, _) -> (
           (* Unification des types du côté droit et gauche *)
           (match rv with
-          | RVplace pl2 -> (match pl with
-              | PlLocal Lret -> let typ_ret = Hashtbl.find mir.mlocals Lret in
-              let typ_val = typ_of_place prog mir pl2 in
-              let rec aux typ_ret typ_val =
-                match typ_ret, typ_val with
-                  | Tborrow(lft, _, t), Tborrow(lft', _, t2) -> if (not((outlives_find lft' lft) || (moutlives_find lft' lft))) || (not((outlives_find lft lft') || (moutlives_find lft lft'))) then failwith "The return borrow has not the same lifetime as the borrow"
-                  else aux t t2
-                  | Tstruct (s, lfts), Tstruct (s2, lfts2) ->
-                      if s <> s2 then failwith "Cannot assign different structs";
-                      List.iter2 (fun lft1 lft2 -> if (not((outlives_find lft1 lft2) || (moutlives_find lft1 lft2))) || (not((outlives_find lft2 lft1) || (moutlives_find lft2 lft1))) then failwith "The return borrow has not the same lifetime as the borrow") lfts lfts2
-                  | _ -> ()
-              in
-              aux typ_ret typ_val;
+          | RVplace pl2 -> 
               unify_typs_places pl pl2
-              | _ -> unify_typs_places pl pl2)
-          | RVbinop (_, pl1, pl2) ->
-              unify_typs_places pl pl1;
-              unify_typs_places pl pl2
-          | RVunop (_, pl1) -> unify_typs_places pl pl1
           | RVmake (s, pls) ->
-            let field_typs, _ = fields_types_fresh prog s in
+            let field_typs, typ_f = fields_types_fresh prog s in
               List.iter2
                 (fun pl2 field_typ ->
                   let typ2 = typ_of_place prog mir pl2 in
                   unify_typs field_typ typ2)
                 pls field_typs;
             let typ = typ_of_place prog mir pl in
-            unify_typs typ (snd (fields_types_fresh prog s))
+            unify_typs typ_f typ
           | RVborrow (_, pl2) ->
               (* Reborrow: le lifetime du borrow doit être plus court que le lifetime du borrow du déréférencement *)
-              let rec typ_of_deref pl = 
-                  match pl with
-                  | PlDeref pl' -> typ_of_deref pl'
-                  | PlLocal l -> Hashtbl.find mir.mlocals l
-                  | PlField (pl', _) -> typ_of_deref pl'
-              in
-              (match pl with
-                | PlLocal Lret ->
-                    let typ_ret = Hashtbl.find mir.mlocals Lret in
-                    let typ_val = typ_of_deref pl2 in
-                    (match typ_ret, typ_val with
-                      | Tborrow(lft, _, t), Tborrow(lft', _, t') -> if ((LMap.find_opt lft mir.moutlives_graph <> None) && (LMap.find_opt lft' mir.moutlives_graph <> None)) && not((moutlives_find lft' lft) || (outlives_find lft' lft)) then failwith "The return borrow has not the same lifetime as the borrow"
-                      | Tborrow(lft,_,_), Tstruct(_,lfts) -> (match lfts with
-                        | [] -> failwith "The return borrow has not the same lifetime as the borrow"
-                        | lft'::_ -> if ((LMap.find_opt lft mir.moutlives_graph <> None) && (LMap.find_opt lft' mir.moutlives_graph <> None)) && not((moutlives_find lft' lft) || (outlives_find lft' lft)) then failwith "The return borrow has not the same lifetime as the borrow"
-                      )
-                      | _ -> ());
-                | _ -> ());
-              (match pl2 with 
-              | PlDeref _ ->
-                let typ = typ_of_deref pl2 in
-                let rec collect_lifetimes_borrows t acc =
-                  match t with
-                  | Tborrow (lft, _, t') -> collect_lifetimes_borrows t' (lft :: acc)
-                  | _ -> acc
-                in
-                let lfts = collect_lifetimes_borrows typ [] in
-                let typ_l = typ_of_place prog mir pl in
-                (match typ_l with
-                | Tborrow (lft_new, _, _) ->
-                    List.iter (fun (lft_old:lifetime) -> if (outlives_find lft_new lft_old) then failwith "The borrow is not shorter than the deref borrow" else add_outlives (lft_old, lft_new)) lfts
-                | _ -> ());
-                
-              
-              | _ ->  unify_typs_places pl pl2) ;
-             
-              
+              (match typ_of_place prog mir pl with
+              |Tborrow(_,_,typ) -> unify_typs typ (typ_of_place prog mir pl2)
+              | _ -> ());   
+              add_outlives_borrow pl pl2
+
           | _ -> ())
         )
       | Icall (fn, args, retpl, _) ->         
         let param_typs, ret_typ, outlives_list = fn_prototype_fresh prog fn in
-        (* Construction de la substitution *)
-        let subst =
-          List.fold_left2
-            (fun s param_typ argpl ->
-              let arg_typ = typ_of_place prog mir argpl in
-              build_lft_subst param_typ arg_typ s)
-            [] param_typs args
-        in
         List.iter2
-          (fun argpl param_typ ->
-            let arg_typ = typ_of_place prog mir argpl in
-            unify_typs param_typ arg_typ)
+          (fun argpl typ ->
+            let typ_arg = typ_of_place prog mir argpl in
+            unify_typs typ typ_arg)
           args param_typs;
-        let ret_typ_actual = typ_of_place prog mir retpl in
-        unify_typs ret_typ ret_typ_actual;
-        (* Ajout des contraintes outlives avec substitution *)
-        List.iter (fun (l1, l2) -> add_outlives (subst_lft subst l1, subst_lft subst l2)) outlives_list
-      | Ireturn -> 
-        (match Hashtbl.find_opt mir.mlocals Lret with
-          | Some typ_ret ->
-              let typ_val = typ_of_place prog mir (PlLocal Lret) in
-              (match typ_ret with
-                | Tunit -> ()
-                | _ -> unify_typs typ_ret typ_val)
-          | None -> ())
+        List.iter add_outlives outlives_list;
+        unify_typs (typ_of_place prog mir retpl) ret_typ;
         
       | _ -> ()
     )
@@ -227,103 +141,21 @@ let compute_lft_sets prog mir : lifetime -> PpSet.t =
        (those in [mir.mgeneric_lfts]) should be alive during the whole execution of the
        function.
   *)
-
-  Array.iter
-    (fun (instr, _loc) ->
-      match instr with
-      | Iif(pl, lbl1, lbl2) ->
-          (* If [pl] is a place, then the lifetime of this place should be alive at the
-            program point where this instruction is executed. *)
-          (*let typ = typ_of_place prog mir pl in*)
-          let locals1 = live_locals lbl1 in
-          LocSet.iter
-            (fun l ->
-              match Hashtbl.find_opt mir.mlocals l with
-              | Some typ ->
-                LSet.iter (fun lft -> add_living (PpLocal lbl1) lft) (free_lfts typ)
-              | None -> ())
-            locals1;
-          let locals2 = live_locals lbl2 in
-          LocSet.iter
-            (fun l ->
-              match Hashtbl.find_opt mir.mlocals l with
-              | Some typ ->
-                LSet.iter (fun lft -> add_living (PpLocal lbl2) lft) (free_lfts typ)
-              | None -> ())
-            locals2;
-          List.iter (fun lft -> add_living (PpLocal lbl1) lft) mir.mgeneric_lfts;
-          List.iter (fun lft -> add_living (PpLocal lbl2) lft) mir.mgeneric_lfts;
-      | Igoto lbl ->
-          (* If this is a goto, then the lifetime of all live locals at the target label
-            should be alive at the program point where this instruction is executed. *)
-          let locals = live_locals lbl in
-          LocSet.iter
-            (fun l ->
-              match Hashtbl.find_opt mir.mlocals l with
-              | Some typ ->
-                LSet.iter (fun lft -> add_living (PpLocal lbl) lft) (free_lfts typ)
-              | None -> ())
-            locals;
-      | Iassign (pl, _, lbl) -> 
-          (* If [pl] is a place, then the lifetime of this place should be alive at the
-            program point where this instruction is executed. *)
-          (*let typ = typ_of_place prog mir pl in*)
-          let locals = live_locals lbl in
-          LocSet.iter
-            (fun l ->
-              match Hashtbl.find_opt mir.mlocals l with
-              | Some typ ->
-                LSet.iter (fun lft -> add_living (PpLocal lbl) lft) (free_lfts typ)
-              | None -> ())
-            locals;
-          List.iter (fun lft -> add_living (PpLocal lbl) lft) mir.mgeneric_lfts
-
-      | Icall (fn, args, retpl, lbl) ->
-          (* If the function returns a value, then the lifetime of this value should be alive at the
-            program point where this instruction is executed. *)
-          let ret_typ = Hashtbl.find mir.mlocals Lret in
-          LSet.iter (fun lft -> add_living (PpLocal lbl) lft) (free_lfts ret_typ);
-          (* If the function has parameters, then the lifetimes of these parameters should be alive at the
-            program point where this instruction is executed. *)
-          List.iter
-            (fun argpl ->
-              let typ = typ_of_place prog mir argpl in
-              LSet.iter (fun lft -> add_living (PpLocal lbl) lft) (free_lfts typ))
-            args;
-          List.iter (fun lft -> add_living (PpLocal lbl) lft) mir.mgeneric_lfts
-
-      | Ideinit (l, lbl) ->
-          (* If [l] is a local variable, then the lifetime of this local variable should be alive at the
-            program point where this instruction is executed. *)
-          (match Hashtbl.find_opt mir.mlocals l with
-          | Some typ ->
-              LSet.iter (fun lft -> add_living (PpLocal lbl) lft) (free_lfts typ)
-          | None -> ());
-          List.iter (fun lft -> add_living (PpLocal lbl) lft) mir.mgeneric_lfts
-      | _ -> ()
+  let rec lft_list typ = match typ with
+  | Tstruct(_,lft_lst) -> lft_lst
+  | Tborrow(lft, _ , typ2) -> lft::(lft_list typ2)
+  | _ -> []
+  in
+  Array.iteri
+    (fun lbl (instr, _loc) ->
+      LocSet.iter (fun loc -> List.iter (add_living (PpLocal lbl)) (lft_list (Hashtbl.find mir.mlocals loc))) (live_locals lbl);
+      List.iter (add_living (PpLocal lbl)) mir.mgeneric_lfts
     )
     mir.minstrs;
-  
+
 
   (* If [lft] is a generic lifetime, [lft] is always alive at [PpInCaller lft]. *)
   List.iter (fun lft -> add_living (PpInCaller lft) lft) mir.mgeneric_lfts;
-  
-  (*let string_of_lifetime lft =
-    match lft with
-    | Lnamed s -> Printf.sprintf "%s" s
-    | Lanon n -> Printf.sprintf "%d" n
-  in
-  let string_of_ppoint ppoint =
-    match ppoint with
-    | PpLocal lbl -> Printf.sprintf "local %d" lbl
-    | PpInCaller lft -> Printf.sprintf "in caller of %s" (string_of_lifetime lft)
-  in
-  LMap.iter
-  (fun lft ppset ->
-    Printf.printf "Lifetime %s is alive at points: %s\n"
-      (string_of_lifetime lft)
-      (String.concat ", " (List.map string_of_ppoint (PpSet.elements ppset))))
-  !living;*)
 
   (* Now, we compute lifetime sets by finding the smallest solution of the constraints, using the
     Fix library. *)
@@ -516,85 +348,27 @@ let borrowck prog mir =
       (* Check a "use" (copy or move) of place [pl]. *)
       let check_use pl =
         let consumes = not (typ_is_copy prog (typ_of_place prog mir pl)) in
-        (*Printf.printf "consumes: %b\n" consumes;*)
         if conflicting_borrow consumes pl then
           Error.error loc "A borrow conflicts with the use of this place.";
         if consumes && contains_deref_borrow pl then
           Error.error loc "Moving a value out of a borrow."
       in
-      (*let string_of_local l =
-        match l with
-        | Lparam p -> Printf.sprintf "param %s" p
-        | Lret -> "return"
-        | Lvar n -> Printf.sprintf "local %d" n
-      in
-      let rec string_of_place pl =
-        match pl with
-        | PlLocal l -> Printf.sprintf "local %s" (string_of_local l)
-        | PlDeref pl' -> Printf.sprintf "deref(%s)" (string_of_place pl')
-        | PlField (pl', field_name) ->
-            Printf.sprintf "field(%s, %s)" (string_of_place pl') field_name
-      in
-      let string_of_lft lft =
-        match lft with
-        | Lnamed s -> Printf.sprintf "named %s" s
-        | Lanon n -> Printf.sprintf "anon %d" n
-      in
-      let print_active_borrows_info active_borrows_info =
-        Printf.printf "Active borrows info:\n";
-        List.iter
-          (fun bi ->
-            Printf.printf "- Place: %s, Mutability: %s, Lifetime: %s\n"
-              (string_of_place bi.bplace)
-              (match bi.bmut with Mut -> "mutable" | NotMut -> "immutable")
-              (string_of_lft bi.blft))
-          active_borrows_info
-      in
-      print_active_borrows_info active_borrows_info;*)
-      let rec check_use_fields pl =
-        match pl with
-        | PlField (pl0, field_name) -> (*Printf.printf "check_use %s\n" field_name; *)check_use pl;(* Printf.printf "check_use_fields %s\n" field_name;*)
-            check_use_fields pl0; 
-        | _ -> ()
-      in
 
       match instr with
-      | Iassign (_, RVunop (_, pl), _) -> (*Printf.printf "Iassign RVunop\n";*) check_use pl
+      | Iassign (_, RVunop (_, pl), _) -> check_use pl
       | Iassign (_, RVborrow (mut, pl), _) ->
-          (*Printf.printf "Iassign RVborrow\n";*)
           if conflicting_borrow (mut = Mut) pl then
             Error.error loc "There is a borrow conflicting this borrow."
-          else
-          (match pl with
-                | PlField (pl0, field_name) -> (*On vérifie que le champ n'est pas déjà emprunté*)
-                  check_use_fields pl
-                | _ -> ());
       | Iassign (pl, RVmake (sid, pls), _) ->
-        (*Printf.printf "Iassign RVmake\n";*)
         List.iter check_use pls
       | Iassign (_, RVplace pl, _) ->
-        (*Printf.printf "Iassign RVplace\n";*)
         check_use pl;
       | Iassign (_, RVbinop (_, pl1, pl2), _) ->
-        (*Printf.printf "Iassign RVbinop\n";*)
         check_use pl1;
         check_use pl2
       | Icall (_, pls, _, _) ->
-        (*Printf.printf "Icall\n";*)
         List.iter check_use pls
-        
-      | Ireturn ->
-        (*Printf.printf "Ireturn\n";*)
-        (match Hashtbl.find_opt mir.mlocals Lret with
-          | Some typ_ret ->
-              (match typ_ret with
-              | Tunit -> ()
-              | _ -> check_use (PlLocal Lret))
-          | None -> ())
-      | Ideinit (l, _) ->
-        (*Printf.printf "Ideinit\n";*)
-        if conflicting_borrow_no_deref (PlLocal l) then
-          Error.error loc "A local declared here leaves its scope while still being borrowed."
+
       | _ -> () 
     )
     mir.minstrs
