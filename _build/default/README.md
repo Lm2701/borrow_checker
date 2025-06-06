@@ -1,12 +1,8 @@
 # borrow_checker
 
-- [ ] Task 1 : Compléter l'analyse statique dans uninitialized_places.ml
-- [ ] Task 2 : Vérifier qu’aucune écriture n’a lieu sous un emprunt partagé, et qu’aucun
-emprunt mutable n’est créé avec une place se trouvant sous un emprunt partagé
-- [ ] Task 3 : Compléter le code responsable de la génération des contraintes, situé
-dans borrowck.ml
-- [ ] Task 4 : Effectuer la vérification des durées de vie
-- [ ] Task 5 : Compléter l'analyseur d'emprunt
-- [ ] Task 6 : Extension : Ajouter la prise en charge du sous-typage des durées de vie (par exemple, &’a i32 est un sous-type de &’b i32 dès que ’a: ’b). Comme en Rust, la variance des emprunts et des types struct doit être prise en compte.
-- [ ] Task 7 : Extension : Étendre le système de types : ajouter la prise en charge des types enum, Box, du polymorphisme de types, etc.
-- [ ] Task 8 : Extension : Développer un back-end qui traduit le code MiniMir en un langage bas-niveau (assembleur, Wasm, C, ...).
+L'ensemble des TODO a été traité, et le code passe tous les tests. 
+J'ai dû modifié le fichier do_tests car sinon les erreurs des failwith n'étaient pas prises en compte.
+La plus grosse difficulté que j'ai rencontrée a eu lieu lors du débuggage du code. En effet, j'ai d'abord cherché à faire un code trop complexe qui passait les tests un à un plutôt que d'essayer de trouver des erreurs globales. A la fin du projet, j'ai compris que le code que j'avais fait était parfois trop complexe et trop précis, j'ai donc cherché à le simplifier au maximum, et en faisant cela, j'ai réussi à passer tous les tests. 
+Ma principale erreur était dans la génération des contraintes au niveau des reborrow car je gérais mal le cas où le borrow était une struct.
+
+Après avoir fini le code principal, j'ai essayé de rédiger un code compilant le mir en c. Ce code se trouve dans le fichier mir_to_c.ml, mais n'est pas fonctionnel.

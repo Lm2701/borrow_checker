@@ -144,14 +144,10 @@ let compute_lft_sets prog mir : lifetime -> PpSet.t =
        (those in [mir.mgeneric_lfts]) should be alive during the whole execution of the
        function.
   *)
-  let rec lft_list typ = match typ with
-  | Tstruct(_,lft_lst) -> lft_lst
-  | Tborrow(lft, _ , typ2) -> lft::(lft_list typ2)
-  | _ -> []
-  in
+
   Array.iteri
     (fun lbl (_instr, _loc) ->
-      LocSet.iter (fun loc -> List.iter (add_living (PpLocal lbl)) (lft_list (Hashtbl.find mir.mlocals loc))) (live_locals lbl);
+      LocSet.iter (fun loc -> LSet.iter (add_living (PpLocal lbl)) (free_lfts (Hashtbl.find mir.mlocals loc))) (live_locals lbl);
       List.iter (add_living (PpLocal lbl)) mir.mgeneric_lfts
     )
     mir.minstrs;
