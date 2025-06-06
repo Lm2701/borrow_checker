@@ -3,7 +3,7 @@
 open Minimir
 open Ast
 
-(* Helper function to convert a type to C syntax *)
+(*Convert a MIR type to a C type*)
 let rec typ_to_c typ =
   match typ with
   | Ti32 -> "int"
@@ -13,24 +13,28 @@ let rec typ_to_c typ =
   | Tborrow (_, NotMut, t) -> "const"^(typ_to_c t)^"*"
   | Tstruct (sid, _) -> Printf.sprintf "struct %s" sid
 
+  (*Convert MIR locals*)
 let local_to_c loc = 
   match loc with
   | Lparam s -> s
   | Lvar n -> Printf.sprintf "lvar_%d" n
   | Lret -> "ret"
 
+  (*Convert MIR places*)
 let rec place_to_c pl =
   match pl with
   | PlLocal l -> local_to_c l
   | PlField (pl, field) -> Printf.sprintf "%s.%s" (place_to_c pl) field
   | PlDeref pl -> Printf.sprintf "*%s" (place_to_c pl)
 
+  (*Convert MIR constants*)
 let string_of_const c =
   match c with
     | Ci32 s -> s
     | Cbool true -> "true"
     | Cbool false -> "false"
 
+(*Convert MIR binop*)
 let string_of_binop op = 
   match op with
   | Badd -> "+"
@@ -44,11 +48,14 @@ let string_of_binop op =
   | Ble -> "<="
   | Bgt -> ">"
   | Bge -> ">="
+
+(*Convert MIR unop*)
 let string_of_unop op = 
   match op with
   | Uneg -> ""
   | Unot -> "not"
-(* Convert a single MIR instruction to C syntax *)
+  
+(* Convert a single MIR instruction to C*)
 let instr_to_c instr =
   match instr with
   | Iassign (pl, RVconst c, _) ->
@@ -76,7 +83,7 @@ let instr_to_c instr =
   | Iif(pl,lbl1,lbl2) -> 
     Printf.sprintf "if %s { goto label_%d; } else { goto label_%d ;}" (place_to_c pl) lbl1 lbl2
 
-(* Convert the entire MIR to C syntax *)
+(* Convert MIR to C *)
 let mir_to_c mir =
   let buf = Buffer.create 1024 in
   (* Generate variable declarations *)

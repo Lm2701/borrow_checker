@@ -105,7 +105,8 @@ let compute_lft_sets prog mir : lifetime -> PpSet.t =
 
           | _ -> ())
         )
-      | Icall (fn, args, retpl, _) ->         
+      | Icall (fn, args, retpl, _) ->        
+        (* Génération des contraintes pour les appels de fonction *) 
         let param_typs, ret_typ, outlives_list = fn_prototype_fresh prog fn in
         List.iter2
           (fun argpl typ ->
